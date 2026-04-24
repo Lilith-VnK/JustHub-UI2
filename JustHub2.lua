@@ -1,4 +1,3 @@
-
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -10,7 +9,7 @@ local Lighting = game:GetService("Lighting")
 local Hub = {}
 
 Hub.Info = {
-	Version = "3.0.0"
+	Version = "3.0.1"
 }
 
 Hub.Save = {
@@ -197,7 +196,7 @@ end
 local function applyBaseCard(card)
 	card.BorderSizePixel = 0
 	card.BackgroundTransparency = 0
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 10)}, card)
+	createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, card)
 	trackTheme(card, "BackgroundColor3", "Color Hub 2")
 	local stroke = createInstance("UIStroke", {
 		Thickness = 1,
@@ -513,8 +512,8 @@ function SectionMethods:addToggle(options)
 	trackTheme(label, "TextColor3", "Color Text")
 
 	local pill = createInstance("Frame", {
-		Size = UDim2.fromOffset(38, 20),
-		Position = UDim2.new(1, -50, 0.5, -10),
+		Size = UDim2.fromOffset(40, 20),
+		Position = UDim2.new(1, -52, 0.5, -10),
 		BorderSizePixel = 0
 	}, frame)
 	trackTheme(pill, "BackgroundColor3", state and "Color Theme" or "Color Hub 1")
@@ -523,8 +522,8 @@ function SectionMethods:addToggle(options)
 	trackTheme(pillStroke, "Color", "Color Stroke")
 
 	local knob = createInstance("Frame", {
-		Size = UDim2.fromOffset(16, 16),
-		Position = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8),
+		Size = UDim2.fromOffset(14, 14),
+		Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7),
 		BorderSizePixel = 0,
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	}, pill)
@@ -542,9 +541,9 @@ function SectionMethods:addToggle(options)
 		updating = true
 		state = on and true or false
 		Hub.ConfigData[title] = state
-		tween(knob, {Position = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)}, 0.16)
+		tween(knob, {Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)}, 0.2, Enum.EasingStyle.Quint)
 		if not Hub.ChromaEnabled then
-			tween(pill, {BackgroundColor3 = state and currentTheme()["Color Theme"] or currentTheme()["Color Hub 1"]}, 0.16)
+			tween(pill, {BackgroundColor3 = state and currentTheme()["Color Theme"] or currentTheme()["Color Hub 1"]}, 0.2, Enum.EasingStyle.Quint)
 		end
 		updating = false
 	end
@@ -784,8 +783,11 @@ function SectionMethods:addSlider(options)
 	trackTheme(track, "BackgroundColor3", "Color Hub 1")
 	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, track)
 
+	local range = maxVal - minVal
+	if range == 0 then range = 1 end
+
 	local fill = createInstance("Frame", {
-		Size = UDim2.new((value - minVal) / (maxVal - minVal), 0, 1, 0),
+		Size = UDim2.new((value - minVal) / range, 0, 1, 0),
 		BorderSizePixel = 0
 	}, track)
 	trackTheme(fill, "BackgroundColor3", "Color Theme")
@@ -806,7 +808,9 @@ function SectionMethods:addSlider(options)
 		value = clampNumber(roundToStep(newValue, step), minVal, maxVal)
 		Hub.ConfigData[title] = value
 		valueBox.Text = string.format(formatStep(step), value)
-		local ratio = (value - minVal) / (maxVal - minVal)
+		local currentRange = maxVal - minVal
+		if currentRange == 0 then currentRange = 1 end
+		local ratio = (value - minVal) / currentRange
 		tween(fill, {Size = UDim2.new(ratio, 0, 1, 0)}, 0.08)
 		if not silent then
 			safeCall(callback, value)
@@ -937,7 +941,7 @@ function SectionMethods:addDropdown(options)
 	trackTheme(body, "BackgroundColor3", "Color Hub 2")
 	local bodyStroke = createInstance("UIStroke", {Thickness = 1}, body)
 	trackTheme(bodyStroke, "Color", "Color Stroke")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 10)}, body)
+	createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, body)
 
 	local scroll = createInstance("ScrollingFrame", {
 		Size = UDim2.new(1, -16, 1, -10),
@@ -1755,15 +1759,30 @@ function Hub:CreateWindow(options)
 	trackTheme(resizeGrip, "TextColor3", "Color Hub 1")
 	createInstance("UICorner", {CornerRadius = UDim.new(0, 5)}, resizeGrip)
 
-	local overlay = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 1, 0),
-		BackgroundTransparency = 1,
-		Visible = true
+	local toggleIcon = createInstance("TextButton", {
+		Size = UDim2.fromOffset(42, 42),
+		Position = UDim2.new(0, 20, 0.5, -21),
+		BackgroundTransparency = 0,
+		Text = "J",
+		Font = Enum.Font.GothamBold,
+		TextSize = 20,
+		Visible = false,
+		AutoButtonColor = false
 	}, screenGui)
+	trackTheme(toggleIcon, "BackgroundColor3", "Color Hub 2")
+	trackTheme(toggleIcon, "TextColor3", "Color Theme")
+	createInstance("UICorner", {CornerRadius = UDim.new(0, 10)}, toggleIcon)
+	local iconStroke = createInstance("UIStroke", {Thickness = 1}, toggleIcon)
+	trackTheme(iconStroke, "Color", "Color Stroke")
+	trackChroma(toggleIcon, "TextColor3")
 
 	local dragActive = false
 	local dragStart = nil
 	local startPos = nil
+
+	local iconDragActive = false
+	local iconDragStart = nil
+	local iconStartPos = nil
 
 	local function setRootSize(newWidth, newHeight)
 		local s = normalizedSize(newWidth, newHeight)
@@ -1813,16 +1832,21 @@ function Hub:CreateWindow(options)
 
 	function windowObj:Open()
 		setWindowVisible(true)
-		main.BackgroundTransparency = 0
 		root.Visible = true
+		toggleIcon.Visible = false
 	end
 
 	function windowObj:Close()
-		setWindowVisible(false)
+		root.Visible = false
+		toggleIcon.Visible = true
 	end
 
 	function windowObj:Toggle()
-		setWindowVisible(not screenGui.Enabled)
+		if root.Visible then
+			self:Close()
+		else
+			self:Open()
+		end
 	end
 
 	function windowObj:Resize(widthValue, heightValue)
@@ -1919,32 +1943,43 @@ function Hub:CreateWindow(options)
 	layoutRoot()
 	trackTheme(main, "BackgroundColor3", "Color Hub 2")
 
-	local function startDrag(input)
-		dragActive = true
-		dragStart = input.Position
-		startPos = root.Position
-	end
-
-	local function updateDrag(input)
-		local delta = input.Position - dragStart
-		root.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
-
 	local dragBegin = header.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			startDrag(input)
+			dragActive = true
+			dragStart = input.Position
+			startPos = root.Position
 		end
 	end)
 	table.insert(Hub.Connections, dragBegin)
 
+	local iconDragBegin = toggleIcon.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			iconDragActive = true
+			iconDragStart = input.Position
+			iconStartPos = toggleIcon.Position
+		end
+	end)
+	table.insert(Hub.Connections, iconDragBegin)
+
 	local dragChanged = UserInputService.InputChanged:Connect(function(input)
-		if dragActive and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-			updateDrag(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			if dragActive then
+				local delta = input.Position - dragStart
+				root.Position = UDim2.new(
+					startPos.X.Scale,
+					startPos.X.Offset + delta.X,
+					startPos.Y.Scale,
+					startPos.Y.Offset + delta.Y
+				)
+			elseif iconDragActive then
+				local delta = input.Position - iconDragStart
+				toggleIcon.Position = UDim2.new(
+					iconStartPos.X.Scale,
+					iconStartPos.X.Offset + delta.X,
+					iconStartPos.Y.Scale,
+					iconStartPos.Y.Offset + delta.Y
+				)
+			end
 		end
 	end)
 	table.insert(Hub.Connections, dragChanged)
@@ -1952,6 +1987,13 @@ function Hub:CreateWindow(options)
 	local dragEnded = UserInputService.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragActive = false
+			if iconDragActive then
+				iconDragActive = false
+				local delta = input.Position - iconDragStart
+				if delta.Magnitude < 5 then
+					windowObj:Open()
+				end
+			end
 		end
 	end)
 	table.insert(Hub.Connections, dragEnded)
@@ -2027,6 +2069,7 @@ function Hub:CreateWindow(options)
 	windowObj.Sidebar = side
 	windowObj.Pages = pageScroll
 	windowObj.NotificationContainer = nil
+	windowObj.ToggleIcon = toggleIcon
 
 	Hub.ScreenGui = screenGui
 	Hub.Window = windowObj
@@ -2219,7 +2262,9 @@ function Hub:LoadConfig(fileName)
 end
 
 function Hub:ToggleUIVisibility()
-	if self.ScreenGui then
+	if self.Window then
+		self.Window:Toggle()
+	elseif self.ScreenGui then
 		self.ScreenGui.Enabled = not self.ScreenGui.Enabled
 	end
 end
