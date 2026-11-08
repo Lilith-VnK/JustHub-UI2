@@ -1,2316 +1,1980 @@
-local TweenService = game:GetService("TweenService")
+local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local StarterGui = game:GetService("StarterGui")
-local Lighting = game:GetService("Lighting")
+local RunService       = game:GetService("RunService")
+local HttpService      = game:GetService("HttpService")
+local Players          = game:GetService("Players")
+local StarterGui       = game:GetService("StarterGui")
 
-local Hub = {}
+local localPlayer = Players.LocalPlayer
+if not localPlayer then
+    error("JustHub must be initialized from a client context", 2)
+end
 
-Hub.Info = {
-	Version = "3.0.1"
+local targetParent = localPlayer:WaitForChild("PlayerGui")
+do
+    local coreGuiOk, coreGui = pcall(function()
+        return game:GetService("CoreGui")
+    end)
+    if coreGuiOk and coreGui then
+        local probe = Instance.new("ScreenGui")
+        local canUseCoreGui = pcall(function()
+            probe.Parent = coreGui
+        end)
+        pcall(function() probe:Destroy() end)
+        if canUseCoreGui then
+            targetParent = coreGui
+        end
+    end
+end
+
+for _, child in ipairs(targetParent:GetChildren()) do
+    if child.Name == "JustHub" or child.Name == "JustHubLoadingScreen" or child.Name == "JustHubShowUI" then
+        pcall(function() child:Destroy() end)
+    end
+end
+
+local JustHub = {}
+JustHub.Themes = {
+	Darker = {["Color Hub 1"] = Color3.fromRGB(15, 15, 20), ["Color Hub 2"] = Color3.fromRGB(25, 25, 30), ["Color Stroke"] = Color3.fromRGB(45, 45, 55), ["Color Theme"] = Color3.fromRGB(100, 255, 150), ["Color Text"] = Color3.fromRGB(240, 240, 245), ["Color Dark Text"] = Color3.fromRGB(160, 160, 170)},
+	Dark = {["Color Hub 1"] = Color3.fromRGB(25, 25, 30), ["Color Hub 2"] = Color3.fromRGB(35, 35, 40), ["Color Stroke"] = Color3.fromRGB(60, 60, 70), ["Color Theme"] = Color3.fromRGB(80, 200, 255), ["Color Text"] = Color3.fromRGB(245, 245, 250), ["Color Dark Text"] = Color3.fromRGB(170, 170, 180)},
+	Purple = {["Color Hub 1"] = Color3.fromRGB(20, 15, 30), ["Color Hub 2"] = Color3.fromRGB(30, 25, 40), ["Color Stroke"] = Color3.fromRGB(50, 40, 65), ["Color Theme"] = Color3.fromRGB(150, 100, 255), ["Color Text"] = Color3.fromRGB(240, 240, 245), ["Color Dark Text"] = Color3.fromRGB(170, 160, 190)},
+	Light = {["Color Hub 1"] = Color3.fromRGB(210, 210, 215), ["Color Hub 2"] = Color3.fromRGB(230, 230, 235), ["Color Stroke"] = Color3.fromRGB(180, 180, 190), ["Color Theme"] = Color3.fromRGB(0, 140, 255), ["Color Text"] = Color3.fromRGB(40, 40, 45), ["Color Dark Text"] = Color3.fromRGB(90, 90, 100)},
+	Neon = {["Color Hub 1"] = Color3.fromRGB(5, 5, 10), ["Color Hub 2"] = Color3.fromRGB(10, 10, 15), ["Color Stroke"] = Color3.fromRGB(0, 255, 255), ["Color Theme"] = Color3.fromRGB(0, 255, 100), ["Color Text"] = Color3.fromRGB(255, 255, 255), ["Color Dark Text"] = Color3.fromRGB(200, 255, 255)},
+	Forest = {["Color Hub 1"] = Color3.fromRGB(0, 30, 15), ["Color Hub 2"] = Color3.fromRGB(0, 45, 25), ["Color Stroke"] = Color3.fromRGB(0, 75, 35), ["Color Theme"] = Color3.fromRGB(50, 205, 50), ["Color Text"] = Color3.fromRGB(230, 255, 230), ["Color Dark Text"] = Color3.fromRGB(170, 200, 170)},
+	Aqua = {["Color Hub 1"] = Color3.fromRGB(0, 70, 80), ["Color Hub 2"] = Color3.fromRGB(0, 100, 110), ["Color Stroke"] = Color3.fromRGB(0, 160, 180), ["Color Theme"] = Color3.fromRGB(0, 230, 255), ["Color Text"] = Color3.fromRGB(250, 255, 255), ["Color Dark Text"] = Color3.fromRGB(200, 230, 240)},
+	Crimson = {["Color Hub 1"] = Color3.fromRGB(35, 0, 5), ["Color Hub 2"] = Color3.fromRGB(60, 0, 10), ["Color Stroke"] = Color3.fromRGB(110, 0, 20), ["Color Theme"] = Color3.fromRGB(255, 50, 80), ["Color Text"] = Color3.fromRGB(255, 240, 240), ["Color Dark Text"] = Color3.fromRGB(220, 180, 180)},
+	Solar = {["Color Hub 1"] = Color3.fromRGB(230, 190, 0), ["Color Hub 2"] = Color3.fromRGB(255, 210, 0), ["Color Stroke"] = Color3.fromRGB(255, 150, 0), ["Color Theme"] = Color3.fromRGB(255, 80, 0), ["Color Text"] = Color3.fromRGB(30, 30, 30), ["Color Dark Text"] = Color3.fromRGB(70, 70, 70)},
+	Pastel = {["Color Hub 1"] = Color3.fromRGB(210, 190, 220), ["Color Hub 2"] = Color3.fromRGB(235, 220, 245), ["Color Stroke"] = Color3.fromRGB(180, 160, 200), ["Color Theme"] = Color3.fromRGB(170, 210, 240), ["Color Text"] = Color3.fromRGB(70, 70, 70), ["Color Dark Text"] = Color3.fromRGB(110, 110, 110)},
+	Cyber = {["Color Hub 1"] = Color3.fromRGB(5, 5, 20), ["Color Hub 2"] = Color3.fromRGB(15, 15, 35), ["Color Stroke"] = Color3.fromRGB(0, 220, 255), ["Color Theme"] = Color3.fromRGB(0, 180, 255), ["Color Text"] = Color3.fromRGB(250, 255, 255), ["Color Dark Text"] = Color3.fromRGB(190, 230, 255)},
+	Ocean = {["Color Hub 1"] = Color3.fromRGB(0, 20, 40), ["Color Hub 2"] = Color3.fromRGB(0, 35, 70), ["Color Stroke"] = Color3.fromRGB(0, 80, 150), ["Color Theme"] = Color3.fromRGB(0, 150, 255), ["Color Text"] = Color3.fromRGB(230, 245, 255), ["Color Dark Text"] = Color3.fromRGB(180, 210, 230)},
+	Desert = {["Color Hub 1"] = Color3.fromRGB(180, 150, 110), ["Color Hub 2"] = Color3.fromRGB(210, 170, 120), ["Color Stroke"] = Color3.fromRGB(140, 70, 30), ["Color Theme"] = Color3.fromRGB(220, 150, 30), ["Color Text"] = Color3.fromRGB(50, 40, 30), ["Color Dark Text"] = Color3.fromRGB(90, 80, 70)},
+	Galaxy = {["Color Hub 1"] = Color3.fromRGB(10, 0, 30), ["Color Hub 2"] = Color3.fromRGB(20, 0, 40), ["Color Stroke"] = Color3.fromRGB(70, 0, 120), ["Color Theme"] = Color3.fromRGB(140, 0, 255), ["Color Text"] = Color3.fromRGB(245, 245, 255), ["Color Dark Text"] = Color3.fromRGB(200, 200, 230)},
+	Vintage = {["Color Hub 1"] = Color3.fromRGB(120, 90, 60), ["Color Hub 2"] = Color3.fromRGB(140, 110, 80), ["Color Stroke"] = Color3.fromRGB(100, 70, 50), ["Color Theme"] = Color3.fromRGB(190, 150, 120), ["Color Text"] = Color3.fromRGB(70, 50, 40), ["Color Dark Text"] = Color3.fromRGB(100, 90, 80)},
+	Rainbow = {["Color Hub 1"] = Color3.fromRGB(240, 240, 240), ["Color Hub 2"] = Color3.fromRGB(255, 255, 255), ["Color Stroke"] = Color3.fromRGB(200, 200, 200), ["Color Theme"] = Color3.fromRGB(255, 100, 100), ["Color Text"] = Color3.fromRGB(30, 30, 30), ["Color Dark Text"] = Color3.fromRGB(90, 90, 90)},
+	Midnight = {["Color Hub 1"] = Color3.fromRGB(0, 0, 20), ["Color Hub 2"] = Color3.fromRGB(5, 5, 30), ["Color Stroke"] = Color3.fromRGB(0, 0, 80), ["Color Theme"] = Color3.fromRGB(50, 50, 255), ["Color Text"] = Color3.fromRGB(250, 250, 255), ["Color Dark Text"] = Color3.fromRGB(190, 190, 220)}
+}
+JustHub.Info = {Version = "3.0.3 (Stability Fixes)"}
+JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Transparency = 0.15, Locked = false}
+JustHub.ConfigData = {}
+JustHub.ControlRegistry = {}
+JustHub.ControlAliases = {}
+JustHub.AmbiguousControlAliases = {}
+JustHub.Controls = {}
+JustHub.Localization = {}
+JustHub.CurrentLang = "en"
+JustHub.UserRole = "member"
+JustHub.UndoStack = {}
+JustHub.RedoStack = {}
+JustHub.Sounds = {ButtonClick = 0, SliderMove = 0}
+JustHub.Connections = {}
+JustHub.ScreenGuis = {}
+
+JustHub.ThemeObjects = setmetatable({}, {__mode = "k"})
+JustHub.ChromaEnabled = false
+JustHub.ChromaObjects = setmetatable({}, {__mode = "k"})
+
+JustHub.KeySystem = {Enabled = false, Key = ""}
+JustHub.PromoNotifyEnabled = true
+JustHub._isApplyingConfig = false
+JustHub._destroyed = false
+JustHub._initializing = false
+JustHub._historyMax = 100
+JustHub._promoThread = nil
+JustHub._notificationThreads = {}
+JustHub.Icons = (function()
+    local iconData = {{"activity", 10709752035}, {"check", 10709790644}, {"cog", 10709810948}, {"folder", 10723387563}, {"home", 10723405786}, {"menu", 10723406085}, {"search", 10723406260}, {"settings", 10723406450}, {"user", 10723406670}}
+    local icons = {}
+    for _, pair in ipairs(iconData) do icons[pair[1]] = "rbxassetid://" .. tostring(pair[2]) end
+    return icons
+end)()
+
+local activeTweens = setmetatable({}, {__mode = "k"})
+local chromaRenderConn = nil
+
+local function isAlive() return not JustHub._destroyed end
+
+local function addConnection(conn)
+    if not conn then return nil end
+    if not isAlive() then pcall(function() conn:Disconnect() end) return nil end
+    table.insert(JustHub.Connections, conn)
+    return conn
+end
+
+local function removeConnection(conn)
+    if not conn then return end
+    for i = #JustHub.Connections, 1, -1 do
+        if JustHub.Connections[i] == conn then
+            table.remove(JustHub.Connections, i)
+            break
+        end
+    end
+end
+
+local function trackScreenGui(sg)
+    if not sg then return nil end
+    if not isAlive() then
+        pcall(function() sg:Destroy() end)
+        return nil
+    end
+    table.insert(JustHub.ScreenGuis, sg)
+    return sg
+end
+
+local function createInstance(className, props, parent)
+    local obj = Instance.new(className)
+    if props then for k, v in pairs(props) do obj[k] = v end end
+    if parent then obj.Parent = parent end
+    return obj
+end
+
+local function connectOnce(signal, callback)
+    local connection
+    connection = signal:Connect(function(...)
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        callback(...)
+    end)
+    return connection
+end
+
+local function tweenProperty(guiObject, goal, time, easingStyle, easingDirection)
+    if not guiObject or not guiObject.Parent then return nil end
+    if activeTweens[guiObject] then activeTweens[guiObject]:Cancel() end
+    local ti = TweenInfo.new(time or 0.2, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out)
+    local tween = TweenService:Create(guiObject, ti, goal)
+    activeTweens[guiObject] = tween
+    connectOnce(tween.Completed, function()
+        if activeTweens[guiObject] == tween then activeTweens[guiObject] = nil end
+    end)
+    tween:Play()
+    return tween
+end
+
+local requiredThemeKeys = {
+    "Color Hub 1", "Color Hub 2", "Color Stroke",
+    "Color Theme", "Color Text", "Color Dark Text"
 }
 
-Hub.Save = {
-	UISize = {560, 380},
-	TabSize = 124,
-	Theme = "Midnight"
-}
-
-Hub.Themes = {
-	Midnight = {
-		["Color Hub 1"] = Color3.fromRGB(18, 20, 26),
-		["Color Hub 2"] = Color3.fromRGB(24, 27, 35),
-		["Color Stroke"] = Color3.fromRGB(52, 58, 72),
-		["Color Theme"] = Color3.fromRGB(118, 172, 255),
-		["Color Text"] = Color3.fromRGB(244, 247, 252),
-		["Color Dark Text"] = Color3.fromRGB(163, 171, 183)
-	},
-	Graphite = {
-		["Color Hub 1"] = Color3.fromRGB(24, 24, 28),
-		["Color Hub 2"] = Color3.fromRGB(32, 32, 38),
-		["Color Stroke"] = Color3.fromRGB(68, 68, 78),
-		["Color Theme"] = Color3.fromRGB(88, 205, 255),
-		["Color Text"] = Color3.fromRGB(245, 245, 247),
-		["Color Dark Text"] = Color3.fromRGB(168, 168, 176)
-	},
-	Slate = {
-		["Color Hub 1"] = Color3.fromRGB(23, 29, 34),
-		["Color Hub 2"] = Color3.fromRGB(32, 40, 46),
-		["Color Stroke"] = Color3.fromRGB(58, 72, 82),
-		["Color Theme"] = Color3.fromRGB(120, 255, 192),
-		["Color Text"] = Color3.fromRGB(242, 248, 246),
-		["Color Dark Text"] = Color3.fromRGB(156, 170, 168)
-	},
-	Lightstone = {
-		["Color Hub 1"] = Color3.fromRGB(235, 237, 241),
-		["Color Hub 2"] = Color3.fromRGB(248, 249, 251),
-		["Color Stroke"] = Color3.fromRGB(202, 209, 218),
-		["Color Theme"] = Color3.fromRGB(42, 136, 255),
-		["Color Text"] = Color3.fromRGB(32, 37, 46),
-		["Color Dark Text"] = Color3.fromRGB(102, 111, 125)
-	}
-}
-
-Hub.ConfigData = {}
-Hub.ControlRegistry = {}
-Hub.Localization = {}
-Hub.CurrentLang = "en"
-Hub.UserRole = "member"
-Hub.UndoStack = {}
-Hub.RedoStack = {}
-Hub.Connections = {}
-Hub.ThemeObjects = {}
-Hub.ChromaObjects = {}
-Hub.Notifications = {}
-Hub.ChromaEnabled = false
-
-local player = Players.LocalPlayer
-local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
-
-local function createInstance(className, properties, parent)
-	local object = Instance.new(className)
-	if properties then
-		for key, value in pairs(properties) do
-			object[key] = value
-		end
-	end
-	if parent then
-		object.Parent = parent
-	end
-	return object
+local function isValidTheme(theme)
+    if type(theme) ~= "table" then return false end
+    for _, key in ipairs(requiredThemeKeys) do
+        if typeof(theme[key]) ~= "Color3" then return false end
+    end
+    return true
 end
 
-local function safeCall(fn, ...)
-	if type(fn) ~= "function" then
-		return
-	end
-	return pcall(fn, ...)
+local function getCurrentTheme(themeName)
+    local theme = type(themeName) == "table"
+        and themeName
+        or JustHub.Themes[themeName or JustHub.Save.Theme]
+    if isValidTheme(theme) then return theme end
+    return JustHub.Themes["Darker"]
 end
 
-local function tween(object, goal, duration, easingStyle, easingDirection)
-	local info = TweenInfo.new(
-		duration or 0.18,
-		easingStyle or Enum.EasingStyle.Quad,
-		easingDirection or Enum.EasingDirection.Out
-	)
-	local anim = TweenService:Create(object, info, goal)
-	anim:Play()
-	return anim
+local function applyTheme(obj, prop, themeKey)
+    if not JustHub.ThemeObjects[obj] then JustHub.ThemeObjects[obj] = {} end
+    JustHub.ThemeObjects[obj][prop] = {ThemeKey = themeKey}
+    
+    local currentTheme = getCurrentTheme(JustHub.Save.Theme)
+    if currentTheme[themeKey] then obj[prop] = currentTheme[themeKey] end
 end
 
-local function themeFor(name)
-	if type(name) == "table" then
-		return name
-	end
-	return Hub.Themes[name or Hub.Save.Theme] or Hub.Themes.Midnight
+function JustHub:UpdateThemeObject(obj, prop, newThemeKey)
+    if self.ThemeObjects[obj] and self.ThemeObjects[obj][prop] then
+        self.ThemeObjects[obj][prop].ThemeKey = newThemeKey
+    end
 end
 
-local function currentTheme()
-	return themeFor(Hub.Save.Theme)
+local function addBorder(obj, themeKey, thickness)
+    local stroke = createInstance("UIStroke", {Thickness = thickness}, obj)
+    applyTheme(stroke, "Color", themeKey)
+    return stroke
 end
 
-local function trackTheme(object, property, key, customUpdater)
-	local entry = {
-		Instance = object,
-		Property = property,
-		ThemeKey = key,
-		CustomFunc = customUpdater
-	}
-	table.insert(Hub.ThemeObjects, entry)
-	if customUpdater then
-		customUpdater()
-	else
-		local theme = currentTheme()
-		if object and object.Parent and theme[key] ~= nil then
-			object[property] = theme[key]
-		end
-	end
-	return entry
+local function updateChromaConn()
+    if JustHub.ChromaEnabled and next(JustHub.ChromaObjects) and isAlive() then
+        if not chromaRenderConn then
+            chromaRenderConn = RunService.Heartbeat:Connect(function()
+                if not isAlive() then return end
+                local color = Color3.fromHSV((tick() % 5) / 5, 1, 1)
+                for obj, props in pairs(JustHub.ChromaObjects) do
+                    for prop, _ in pairs(props) do
+                        obj[prop] = color
+                    end
+                end
+            end)
+        end
+    elseif chromaRenderConn then
+        chromaRenderConn:Disconnect()
+        chromaRenderConn = nil
+    end
 end
 
-local function trackChroma(object, property)
-	table.insert(Hub.ChromaObjects, {
-		Instance = object,
-		Property = property
-	})
+local function registerChroma(obj, property, themeKey)
+    if not JustHub.ChromaObjects[obj] then JustHub.ChromaObjects[obj] = {} end
+    JustHub.ChromaObjects[obj][property] = themeKey or true
+    updateChromaConn()
 end
 
-local function removeTrackedChroma(instance)
-	for i = #Hub.ChromaObjects, 1, -1 do
-		if Hub.ChromaObjects[i].Instance == instance then
-			table.remove(Hub.ChromaObjects, i)
-		end
-	end
+function JustHub:UnregisterChroma(obj, property)
+    if self.ChromaObjects[obj] then
+        if property then
+            self.ChromaObjects[obj][property] = nil
+            if not next(self.ChromaObjects[obj]) then self.ChromaObjects[obj] = nil end
+        else
+            self.ChromaObjects[obj] = nil
+        end
+    end
+    updateChromaConn()
 end
 
-local function removeAllConnections()
-	for _, conn in ipairs(Hub.Connections) do
-		if conn and conn.Disconnect then
-			conn:Disconnect()
-		end
-	end
-	table.clear(Hub.Connections)
+function JustHub:ToggleChroma(state)
+    self.ChromaEnabled = state
+    updateChromaConn()
+    if not state then
+        local theme = getCurrentTheme(self.Save.Theme)
+        for obj, props in pairs(self.ChromaObjects) do
+            for prop, themeKey in pairs(props) do
+                if type(themeKey) == "string" and theme[themeKey] then
+                    obj[prop] = theme[themeKey]
+                end
+            end
+        end
+    end
 end
 
-local function clampNumber(value, minimum, maximum)
-	return math.clamp(value, minimum, maximum)
+local function makeControlId(tab, section, name)
+    local baseId = tostring(tab or "_") .. "/" .. tostring(section or "_") .. "/" .. tostring(name or "_")
+    local controlId = baseId
+    local suffix = 2
+    while JustHub.ControlRegistry[controlId] or JustHub.ConfigData[controlId] do
+        controlId = baseId .. "#" .. tostring(suffix)
+        suffix = suffix + 1
+    end
+    return controlId
 end
 
-local function roundToStep(value, step)
-	if step <= 0 then
-		return value
-	end
-	return math.floor((value / step) + 0.5) * step
+local function normalizeStringArray(value)
+    local normalized = {}
+    if type(value) == "table" then
+        for _, item in ipairs(value) do
+            if type(item) == "string" then table.insert(normalized, item) end
+        end
+    end
+    return normalized
 end
 
-local function formatStep(step)
-	if step == math.floor(step) then
-		return "%d"
-	end
-	local str = tostring(step)
-	local dot = str:find("%.")
-	if not dot then
-		return "%.2f"
-	end
-	local precision = math.clamp(#str - dot, 0, 6)
-	return "%." .. precision .. "f"
+local function createControl(opts)
+    local ctrl = {
+        id          = opts.id,
+        shortName   = opts.shortName,
+        default     = opts.default,
+        callback    = opts.callback or function() end,
+        updateVisuals = opts.updateVisuals or function() end,
+        validate     = opts.validate,
+        _value      = opts.default,
+        _editStart  = nil,
+    }
+
+    local function fireCallback(val)
+        local ok, err = pcall(ctrl.callback, val)
+        if not ok then warn("[JustHub] Callback error for '" .. tostring(ctrl.id) .. "': " .. tostring(err)) end
+    end
+
+    local function setValueCore(newVal, applyOpts)
+        applyOpts = applyOpts or {}
+        if ctrl.validate then
+            local valid, reason = ctrl.validate(newVal)
+            if not valid then error(reason or ("Invalid value for control " .. tostring(ctrl.id)), 0) end
+        end
+        local oldVal = ctrl._value
+        ctrl._value = newVal
+        JustHub.ConfigData[ctrl.id] = newVal
+        if not applyOpts.skipVisual then
+            local visualOk, visualErr = pcall(ctrl.updateVisuals, newVal)
+            if not visualOk then
+                ctrl._value = oldVal
+                JustHub.ConfigData[ctrl.id] = oldVal
+                pcall(ctrl.updateVisuals, oldVal)
+                error(visualErr, 0)
+            end
+        end
+        if not applyOpts.skipCallback then
+            task.spawn(fireCallback, newVal)
+        end
+        if not applyOpts.skipHistory and not JustHub._isApplyingConfig and oldVal ~= newVal then
+            JustHub:AddUndo(ctrl.id, oldVal, newVal)
+        end
+    end
+
+    function ctrl.setValue(v) setValueCore(v) end
+    function ctrl.setValueLive(v) setValueCore(v, {skipHistory = true}) end
+    function ctrl.getValue() return ctrl._value end
+    function ctrl.beginEdit() ctrl._editStart = ctrl._value end
+    function ctrl.endEdit()
+        if ctrl._editStart ~= nil and ctrl._editStart ~= ctrl._value and not JustHub._isApplyingConfig then
+            JustHub:AddUndo(ctrl.id, ctrl._editStart, ctrl._value)
+        end
+        ctrl._editStart = nil
+    end
+
+    JustHub.ConfigData[ctrl.id] = ctrl._value
+    return ctrl
 end
 
-local function viewportSize()
-	local camera = workspace.CurrentCamera
-	if camera then
-		return camera.ViewportSize
-	end
-	return Vector2.new(1280, 720)
+function JustHub:RegisterControl(id, setter, meta)
+    meta = meta or {}
+    if type(id) ~= "string" or id == "" or type(setter) ~= "function" then
+        warn("[JustHub] Invalid control registration")
+        return false
+    end
+
+    local existing = self.ControlRegistry[id]
+    if existing and existing ~= setter then
+        warn("[JustHub] Control ID collision: " .. tostring(id))
+        return false
+    end
+
+    self.ControlRegistry[id] = setter
+    self.Controls[id] = meta
+
+    local shortName = meta.shortName
+    if type(shortName) == "string" and shortName ~= "" and shortName ~= id
+        and not self.AmbiguousControlAliases[shortName] then
+        local existingAlias = self.ControlAliases[shortName]
+        if existingAlias and existingAlias ~= setter then
+            self.ControlAliases[shortName] = nil
+            self.AmbiguousControlAliases[shortName] = true
+            if not self.ControlRegistry[shortName] then
+                self.Controls[shortName] = nil
+            end
+            warn("[JustHub] Ambiguous short control name; use the full control ID: " .. shortName)
+        else
+            self.ControlAliases[shortName] = setter
+            if not self.ControlRegistry[shortName] then
+                self.Controls[shortName] = meta
+            end
+        end
+    end
+    return true
 end
 
-local function normalizedSize(width, height)
-	local vp = viewportSize()
-	local w = math.clamp(width, 320, math.floor(vp.X * 0.92))
-	local h = math.clamp(height, 240, math.floor(vp.Y * 0.88))
-	return UDim2.fromOffset(w, h)
+function JustHub:SetUserRole(roleName) self.UserRole = roleName end
+function JustHub:CheckRole(requiredRole) return self.UserRole == requiredRole end
+
+function JustHub:AddUndo(controlKey, oldValue, newValue)
+    if self._isApplyingConfig then return end
+    if oldValue == newValue then return end
+    local last = self.UndoStack[#self.UndoStack]
+    if last and last.key == controlKey and last.new == oldValue then
+        last.new = newValue
+    else
+        table.insert(self.UndoStack, {key = controlKey, old = oldValue, new = newValue})
+        if #self.UndoStack > self._historyMax then table.remove(self.UndoStack, 1) end
+    end
+    table.clear(self.RedoStack)
 end
 
-local function applyBaseCard(card)
-	card.BorderSizePixel = 0
-	card.BackgroundTransparency = 0
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, card)
-	trackTheme(card, "BackgroundColor3", "Color Hub 2")
-	local stroke = createInstance("UIStroke", {
-		Thickness = 1,
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	}, card)
-	trackTheme(stroke, "Color", "Color Stroke")
-	return stroke
+function JustHub:Undo()
+    local last = self.UndoStack[#self.UndoStack]
+    if not last then return false end
+    local setter = self.ControlRegistry[last.key]
+    if not setter then return false end
+
+    local wasApplyingConfig = self._isApplyingConfig
+    self._isApplyingConfig = true
+    local ok, err = pcall(setter, last.old)
+    self._isApplyingConfig = wasApplyingConfig
+    if not ok then
+        warn("[JustHub] Undo failed for '" .. tostring(last.key) .. "': " .. tostring(err))
+        return false
+    end
+
+    self.UndoStack[#self.UndoStack] = nil
+    table.insert(self.RedoStack, last)
+    return true
 end
 
-local function currentControlValue(key, fallback)
-	if Hub.ConfigData[key] ~= nil then
-		return Hub.ConfigData[key]
-	end
-	Hub.ConfigData[key] = fallback
-	return fallback
+function JustHub:Redo()
+    local last = self.RedoStack[#self.RedoStack]
+    if not last then return false end
+    local setter = self.ControlRegistry[last.key]
+    if not setter then return false end
+
+    local wasApplyingConfig = self._isApplyingConfig
+    self._isApplyingConfig = true
+    local ok, err = pcall(setter, last.new)
+    self._isApplyingConfig = wasApplyingConfig
+    if not ok then
+        warn("[JustHub] Redo failed for '" .. tostring(last.key) .. "': " .. tostring(err))
+        return false
+    end
+
+    self.RedoStack[#self.RedoStack] = nil
+    table.insert(self.UndoStack, last)
+    return true
 end
 
-local function notifyCore(container, title, message, duration, progress)
-	local card = createInstance("Frame", {
-		Size = UDim2.fromOffset(320, 0),
-		BackgroundTransparency = 1,
-		ClipsDescendants = true,
-		AutomaticSize = Enum.AutomaticSize.Y
-	}, container)
+function JustHub:ApplyConfig(configData)
+    if type(configData) ~= "table" then return false, "Invalid config table" end
 
-	local body = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundTransparency = 0
-	}, card)
-	applyBaseCard(body)
+    local wasApplyingConfig = self._isApplyingConfig
+    self._isApplyingConfig = true
+    local applied, skipped = 0, 0
+    local canonicalPresent = {}
 
-	local header = createInstance("TextLabel", {
-		Size = UDim2.new(1, -20, 0, 18),
-		Position = UDim2.fromOffset(10, 10),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.GothamBold,
-		TextSize = 14,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Text = title or ""
-	}, body)
-	trackTheme(header, "TextColor3", "Color Text")
+    for key, val in pairs(configData) do
+        local setter = self.ControlRegistry[key]
+        if setter then
+            canonicalPresent[setter] = true
+            local ok, err = pcall(setter, val)
+            if ok then
+                applied = applied + 1
+            else
+                skipped = skipped + 1
+                warn("[JustHub] Failed to apply '" .. tostring(key) .. "': " .. tostring(err))
+            end
+        end
+    end
 
-	local msg = createInstance("TextLabel", {
-		Size = UDim2.new(1, -20, 0, 0),
-		Position = UDim2.fromOffset(10, 32),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		TextSize = 12,
-		TextWrapped = true,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top,
-		AutomaticSize = Enum.AutomaticSize.Y,
-		Text = message or ""
-	}, body)
-	trackTheme(msg, "TextColor3", "Color Dark Text")
+    for key, val in pairs(configData) do
+        if not self.ControlRegistry[key] then
+            local setter = self.ControlAliases[key]
+            if setter and not canonicalPresent[setter] then
+                local ok, err = pcall(setter, val)
+                if ok then
+                    applied = applied + 1
+                else
+                    skipped = skipped + 1
+                    warn("[JustHub] Failed to apply legacy key '" .. tostring(key) .. "': " .. tostring(err))
+                end
+            elseif not setter then
+                skipped = skipped + 1
+            end
+        end
+    end
 
-	local accent = nil
-	if progress then
-		accent = createInstance("Frame", {
-			Size = UDim2.new(1, 0, 0, 3),
-			Position = UDim2.new(0, 0, 1, -3),
-			BorderSizePixel = 0
-		}, body)
-		trackTheme(accent, "BackgroundColor3", "Color Theme")
-		trackChroma(accent, "BackgroundColor3")
-	end
-
-	task.defer(function()
-		task.wait(0.05)
-		local height = 48 + msg.TextBounds.Y
-		body.Size = UDim2.fromOffset(320, height)
-		card.Size = UDim2.fromOffset(320, height)
-		body.Position = UDim2.new(1, 40, 0, 0)
-		tween(body, {Position = UDim2.new(0, 0, 0, 0)}, 0.25, Enum.EasingStyle.Quart)
-		if accent then
-			local progressTween = tween(accent, {Size = UDim2.new(0, 0, 0, 3)}, duration or 3, Enum.EasingStyle.Linear)
-			task.delay(duration or 3, function()
-				if progressTween then
-					progressTween:Cancel()
-				end
-			end)
-		end
-		task.wait(duration or 3)
-		local fade = tween(body, {BackgroundTransparency = 1}, 0.2)
-		tween(header, {TextTransparency = 1}, 0.2)
-		tween(msg, {TextTransparency = 1}, 0.2)
-		if accent then
-			tween(accent, {BackgroundTransparency = 1}, 0.2)
-		end
-		fade.Completed:Wait()
-		if card then
-			card:Destroy()
-		end
-	end)
-
-	return card
+    self._isApplyingConfig = wasApplyingConfig
+    return true, {applied = applied, skipped = skipped}
 end
 
-task.spawn(function()
-	while true do
-		if Hub.ChromaEnabled then
-			local hue = (tick() % 6) / 6
-			local color = Color3.fromHSV(hue, 1, 1)
-			for i = #Hub.ChromaObjects, 1, -1 do
-				local data = Hub.ChromaObjects[i]
-				if data.Instance and data.Instance.Parent then
-					data.Instance[data.Property] = color
-				else
-					table.remove(Hub.ChromaObjects, i)
-				end
-			end
-		end
-		task.wait(0.03)
-	end
-end)
-
-function Hub:ToggleChroma(state)
-	self.ChromaEnabled = state and true or false
-	if not self.ChromaEnabled then
-		local theme = currentTheme()
-		for _, data in ipairs(self.ChromaObjects) do
-			if data.Instance and data.Instance.Parent and theme["Color Theme"] then
-				data.Instance[data.Property] = theme["Color Theme"]
-			end
-		end
-	end
+function JustHub:RegisterTheme(name, definition)
+    if type(name) ~= "string" or name == "" or not isValidTheme(definition) then
+        warn("[JustHub] Invalid theme. Expected a name and all six Color3 theme fields.")
+        return false
+    end
+    self.Themes[name] = definition
+    return true
 end
-
-function Hub:RegisterControl(key, updateFunc)
-	self.ControlRegistry[key] = updateFunc
+function JustHub:PlaySound(name)
+    if self.Sounds[name] and self.Sounds[name] ~= 0 then
+        local s = Instance.new("Sound")
+        s.SoundId = "rbxassetid://" .. tostring(self.Sounds[name])
+        s.Volume = 1; s.PlayOnRemove = true; s.Parent = workspace; s:Destroy()
+    end
 end
+function JustHub:SetLanguage(lang) self.CurrentLang = lang end
+function JustHub:LocalizeText(textKey) return (self.Localization[self.CurrentLang] and self.Localization[self.CurrentLang][textKey]) or textKey end
 
-function Hub:AddUndo(key, oldValue, newValue)
-	table.insert(self.UndoStack, {Key = key, Old = oldValue, New = newValue})
-	if #self.UndoStack > 60 then
-		table.remove(self.UndoStack, 1)
-	end
-	self.RedoStack = {}
-end
+local function createDropdownScaffolding(parent, title, defaultText)
+    local frame = createInstance("Frame", {
+        Name = title .. "Dropdown", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.15,
+        ClipsDescendants = false, BorderSizePixel = 0, ZIndex = 1
+    }, parent)
+    applyTheme(frame, "BackgroundColor3", "Color Hub 2")
 
-function Hub:Undo()
-	local item = self.UndoStack[#self.UndoStack]
-	if not item then
-		return
-	end
-	self.UndoStack[#self.UndoStack] = nil
-	local handler = self.ControlRegistry[item.Key]
-	if handler then
-		handler(item.Old)
-	end
-	table.insert(self.RedoStack, item)
-end
+    local bgFrame = createInstance("Frame", {Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, frame)
+    applyTheme(bgFrame, "BackgroundColor3", "Color Hub 2")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, bgFrame)
+    addBorder(bgFrame, "Color Stroke", 1)
 
-function Hub:Redo()
-	local item = self.RedoStack[#self.RedoStack]
-	if not item then
-		return
-	end
-	self.RedoStack[#self.RedoStack] = nil
-	local handler = self.ControlRegistry[item.Key]
-	if handler then
-		handler(item.New)
-	end
-	table.insert(self.UndoStack, item)
-end
+    local headerBtn = createInstance("TextButton", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 3}, bgFrame)
+    local label = createInstance("TextLabel", {
+        Text = title, Size = UDim2.new(0.5, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0),
+        BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3
+    }, headerBtn)
+    applyTheme(label, "TextColor3", "Color Text")
 
-function Hub:ApplyConfig(configData)
-	for key, value in pairs(configData or {}) do
-		local handler = self.ControlRegistry[key]
-		if handler then
-			handler(value)
-		end
-	end
-end
+    local selectedLabel = createInstance("TextLabel", {
+        Text = defaultText, Size = UDim2.new(0.5, -25, 1, 0), Position = UDim2.new(0.5, 0, 0, 0),
+        BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 3
+    }, headerBtn)
+    applyTheme(selectedLabel, "TextColor3", "Color Dark Text")
 
-function Hub:RegisterTheme(name, definition)
-	if type(name) == "string" and type(definition) == "table" then
-		self.Themes[name] = definition
-	end
-end
+    local arrow = createInstance("TextLabel", {
+        Text = "▼", Size = UDim2.new(0, 15, 1, 0), Position = UDim2.new(1, -20, 0, 0),
+        BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 3
+    }, headerBtn)
+    applyTheme(arrow, "TextColor3", "Color Dark Text")
 
-function Hub:SetLanguage(lang)
-	self.CurrentLang = lang or "en"
-end
+    local body = createInstance("Frame", {
+        Size = UDim2.new(1, 0, 0, 0), Position = UDim2.new(0, 0, 0, 42),
+        BackgroundTransparency = 0, BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 10
+    }, frame)
+    applyTheme(body, "BackgroundColor3", "Color Hub 2")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, body)
+    addBorder(body, "Color Stroke", 1)
 
-function Hub:LocalizeText(textKey)
-	local lang = self.Localization[self.CurrentLang]
-	if lang and lang[textKey] ~= nil then
-		return lang[textKey]
-	end
-	return textKey
-end
-
-function Hub:SetUserRole(roleName)
-	self.UserRole = roleName or "member"
-end
-
-function Hub:CheckRole(requiredRole)
-	if not requiredRole then
-		return true
-	end
-	return self.UserRole == requiredRole
-end
-
-function Hub:PlaySound(soundId)
-	if not soundId or soundId == 0 then
-		return
-	end
-	local s = Instance.new("Sound")
-	s.SoundId = "rbxassetid://" .. tostring(soundId)
-	s.Volume = 1
-	s.PlayOnRemove = true
-	s.Parent = workspace
-	s:Destroy()
-end
-
-function Hub:UpdateTheme(newTheme)
-	self.Save.Theme = newTheme or self.Save.Theme
-	local theme = currentTheme()
-	for i = #self.ThemeObjects, 1, -1 do
-		local data = self.ThemeObjects[i]
-		if data.Instance and data.Instance.Parent then
-			if data.CustomFunc then
-				data.CustomFunc()
-			elseif not (self.ChromaEnabled and data.ThemeKey == "Color Theme") then
-				local value = theme[data.ThemeKey]
-				if value ~= nil then
-					data.Instance[data.Property] = value
-				end
-			end
-		else
-			table.remove(self.ThemeObjects, i)
-		end
-	end
-end
-
-function Hub:SetTheme(newTheme)
-	self:UpdateTheme(newTheme)
+    return {Frame = frame, Header = headerBtn, SelectedLabel = selectedLabel, Arrow = arrow, Body = body}
 end
 
 local SectionMethods = {}
-local TabMethods = {}
 
 function SectionMethods:addMenu(name)
-	local text = name and tostring(name) or "Menu"
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 28),
-		BackgroundTransparency = 1
-	}, self.Content)
+    local menuName = (name ~= nil) and tostring(name) or "Menu"
+    local frame = createInstance("Frame", {
+        Name = menuName, Size = UDim2.new(1, 0, 0, 44), BackgroundTransparency = 0.15,
+        BorderSizePixel = 0, ClipsDescendants = true
+    }, self.Content)
+    applyTheme(frame, "BackgroundColor3", "Color Hub 2")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 10)}, frame)
+    addBorder(frame, "Color Stroke", 1)
 
-	local line = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 1),
-		Position = UDim2.new(0, 0, 0.5, 0),
-		BorderSizePixel = 0
-	}, frame)
-	trackTheme(line, "BackgroundColor3", "Color Stroke")
+    local gradient = createInstance("UIGradient", {Rotation = 90}, frame)
+    local function updateGradient()
+        local ct = getCurrentTheme(JustHub.Save.Theme)
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, ct["Color Hub 2"]),
+            ColorSequenceKeypoint.new(1, ct["Color Hub 1"])
+        })
+    end
+    updateGradient()
+    
+    if not JustHub.ThemeObjects[gradient] then JustHub.ThemeObjects[gradient] = {} end
+    JustHub.ThemeObjects[gradient]["Color"] = {ThemeKey = "GradientSpecial", CustomFunc = updateGradient}
 
-	local label = createInstance("TextLabel", {
-		Size = UDim2.fromOffset(math.clamp(80 + (#text * 6), 90, 220), 20),
-		Position = UDim2.new(0, 10, 0.5, -10),
-		BackgroundTransparency = 0,
-		Text = text,
-		Font = Enum.Font.GothamSemibold,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Center
-	}, frame)
-	trackTheme(label, "BackgroundColor3", "Color Hub 1")
-	trackTheme(label, "TextColor3", "Color Text")
-	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, label)
-	local stroke = createInstance("UIStroke", {Thickness = 1}, label)
-	trackTheme(stroke, "Color", "Color Stroke")
-	return frame
+    local label = createInstance("TextLabel", {
+        Name = "MenuLabel", Text = menuName, Size = UDim2.new(1, -16, 1, 0), Position = UDim2.new(0, 10, 0, 0),
+        BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 2
+    }, frame)
+    applyTheme(label, "TextColor3", "Color Text")
+    return frame
 end
 
 function SectionMethods:addChromaToggle()
-	return self:addToggle({
-		Name = "Chroma Mode",
-		Default = Hub.ChromaEnabled,
-		Callback = function(state)
-			Hub:ToggleChroma(state)
-		end
-	})
+    return self:addToggle({
+        Name = "Rainbow Chroma Mode",
+        Default = JustHub.ChromaEnabled,
+        Callback = function(state) JustHub:ToggleChroma(state) end
+    })
 end
 
 function SectionMethods:addToggle(options)
-	options = options or {}
-	local title = options.Name or "Toggle"
-	local default = options.Default or false
-	local callback = options.Callback or function() end
-	local role = options.Role
+    options = options or {}
+    local title     = options.Name or "Toggle"
+    local default   = options.Default == true
+    local callback  = options.Callback or function() end
+    local controlId = makeControlId(self._tabName, self._sectionName, title)
 
-	if role and not Hub:CheckRole(role) then
-		return nil
-	end
+    local frame = createInstance("Frame", {
+        Name = title .. "Toggle", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.15, BorderSizePixel = 0
+    }, self.Content)
+    applyTheme(frame, "BackgroundColor3", "Color Hub 2")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame)
+    addBorder(frame, "Color Stroke", 1)
 
-	local state = currentControlValue(title, default) and true or false
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 40),
-		BackgroundTransparency = 0
-	}, self.Content)
-	applyBaseCard(frame)
+    local label = createInstance("TextLabel", {
+        Size = UDim2.new(0.7, -8, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = title,
+        Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2
+    }, frame)
+    applyTheme(label, "TextColor3", "Color Text")
 
-	local label = createInstance("TextLabel", {
-		Size = UDim2.new(1, -72, 1, 0),
-		Position = UDim2.fromOffset(12, 0),
-		BackgroundTransparency = 1,
-		Text = title,
-		Font = Enum.Font.GothamMedium,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, frame)
-	trackTheme(label, "TextColor3", "Color Text")
+    local switchBg = createInstance("Frame", {
+        Size = UDim2.new(0, 44, 0, 22), Position = UDim2.new(1, -54, 0.5, -11), BorderSizePixel = 0, ZIndex = 2
+    }, frame)
+    applyTheme(switchBg, "BackgroundColor3", default and "Color Theme" or "Color Hub 1")
+    createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, switchBg)
+    addBorder(switchBg, "Color Stroke", 1)
 
-	local pill = createInstance("Frame", {
-		Size = UDim2.fromOffset(40, 20),
-		Position = UDim2.new(1, -52, 0.5, -10),
-		BorderSizePixel = 0
-	}, frame)
-	trackTheme(pill, "BackgroundColor3", state and "Color Theme" or "Color Hub 1")
-	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, pill)
-	local pillStroke = createInstance("UIStroke", {Thickness = 1}, pill)
-	trackTheme(pillStroke, "Color", "Color Stroke")
+    local circle = createInstance("Frame", {
+        Size = UDim2.new(0, 18, 0, 18), BorderSizePixel = 0, ZIndex = 3,
+        Position = default and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
+    }, switchBg)
+    applyTheme(circle, "BackgroundColor3", "Color Text")
+    createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, circle)
 
-	local knob = createInstance("Frame", {
-		Size = UDim2.fromOffset(14, 14),
-		Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7),
-		BorderSizePixel = 0,
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	}, pill)
-	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, knob)
+    if default then registerChroma(switchBg, "BackgroundColor3", "Color Theme") end
+    local hitButton = createInstance("TextButton", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 5}, frame)
 
-	local button = createInstance("TextButton", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-		Text = "",
-		AutoButtonColor = false
-	}, frame)
+    local function updateVisuals(isActive)
+        tweenProperty(circle, {Position = isActive and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)}, 0.25)
+        local ct = getCurrentTheme(JustHub.Save.Theme)
+        if isActive then
+            tweenProperty(switchBg, {BackgroundColor3 = ct["Color Theme"]}, 0.25)
+            registerChroma(switchBg, "BackgroundColor3", "Color Theme")
+            JustHub:UpdateThemeObject(switchBg, "BackgroundColor3", "Color Theme")
+        else
+            tweenProperty(switchBg, {BackgroundColor3 = ct["Color Hub 1"]}, 0.25)
+            JustHub:UnregisterChroma(switchBg, "BackgroundColor3")
+            JustHub:UpdateThemeObject(switchBg, "BackgroundColor3", "Color Hub 1")
+        end
+    end
 
-	local updating = false
-	local function render(on)
-		updating = true
-		state = on and true or false
-		Hub.ConfigData[title] = state
-		tween(knob, {Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)}, 0.2, Enum.EasingStyle.Quint)
-		if not Hub.ChromaEnabled then
-			tween(pill, {BackgroundColor3 = state and currentTheme()["Color Theme"] or currentTheme()["Color Hub 1"]}, 0.2, Enum.EasingStyle.Quint)
-		end
-		updating = false
-	end
+    local ctrl = createControl({
+        id = controlId, shortName = title, default = default,
+        callback = callback, updateVisuals = updateVisuals,
+        validate = function(v) return type(v) == "boolean", "Toggle value must be boolean" end
+    })
 
-	Hub:RegisterControl(title, function(val)
-		local old = state
-		render(val and true or false)
-		Hub:AddUndo(title, old, state)
-	end)
-
-	render(state)
-	safeCall(callback, state)
-
-	local conn = button.MouseButton1Click:Connect(function()
-		local old = state
-		local nextState = not state
-		render(nextState)
-		safeCall(callback, nextState)
-		Hub:AddUndo(title, old, nextState)
-	end)
-	table.insert(Hub.Connections, conn)
-	if state then
-		trackChroma(pill, "BackgroundColor3")
-	end
-
-	return {
-		Set = function(_, value)
-			render(value and true or false)
-		end
-	}
-end
-
-function SectionMethods:addButton(options)
-	options = options or {}
-	local title = options.Name or "Button"
-	local callback = options.Callback or function() end
-	local role = options.Role
-
-	if role and not Hub:CheckRole(role) then
-		return nil
-	end
-
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 38),
-		BackgroundTransparency = 0
-	}, self.Content)
-	applyBaseCard(frame)
-
-	local label = createInstance("TextLabel", {
-		Size = UDim2.new(1, -24, 1, 0),
-		Position = UDim2.fromOffset(12, 0),
-		BackgroundTransparency = 1,
-		Text = title,
-		Font = Enum.Font.GothamMedium,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, frame)
-	trackTheme(label, "TextColor3", "Color Text")
-
-	local accent = createInstance("Frame", {
-		Size = UDim2.fromOffset(6, 16),
-		Position = UDim2.new(1, -16, 0.5, -8),
-		BorderSizePixel = 0
-	}, frame)
-	trackTheme(accent, "BackgroundColor3", "Color Theme")
-	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, accent)
-	trackChroma(accent, "BackgroundColor3")
-
-	local button = createInstance("TextButton", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-		Text = "",
-		AutoButtonColor = false
-	}, frame)
-
-	local conn = button.MouseButton1Click:Connect(function()
-		safeCall(callback)
-	end)
-	table.insert(Hub.Connections, conn)
-
-	return frame
-end
-
-function SectionMethods:addLabel(options)
-	options = type(options) == "string" and {Text = options} or options or {}
-	local text = options.Text or options.Name or "Label"
-	local align = options.Align or "Left"
-
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 28),
-		BackgroundTransparency = 1
-	}, self.Content)
-
-	local label = createInstance("TextLabel", {
-		Size = UDim2.new(1, 0, 1, 0),
-		BackgroundTransparency = 1,
-		Text = text,
-		Font = Enum.Font.GothamMedium,
-		TextSize = 12,
-		TextWrapped = true,
-		TextXAlignment = align == "Center" and Enum.TextXAlignment.Center or align == "Right" and Enum.TextXAlignment.Right or Enum.TextXAlignment.Left
-	}, frame)
-	trackTheme(label, "TextColor3", "Color Dark Text")
-
-	if align == "Left" then
-		createInstance("UIPadding", {
-			PaddingLeft = UDim.new(0, 4),
-			PaddingRight = UDim.new(0, 4)
-		}, label)
-	end
-
-	return {
-		SetText = function(_, newText)
-			label.Text = tostring(newText)
-		end
-	}
-end
-
-function SectionMethods:addTextBox(options)
-	options = options or {}
-	local title = options.Name or "TextBox"
-	local default = options.Default or ""
-	local callback = options.Callback or function() end
-
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 42),
-		BackgroundTransparency = 0
-	}, self.Content)
-	applyBaseCard(frame)
-
-	local label = createInstance("TextLabel", {
-		Size = UDim2.new(0.42, -12, 1, 0),
-		Position = UDim2.fromOffset(12, 0),
-		BackgroundTransparency = 1,
-		Text = title,
-		Font = Enum.Font.GothamMedium,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, frame)
-	trackTheme(label, "TextColor3", "Color Text")
-
-	local input = createInstance("TextBox", {
-		Size = UDim2.new(0.58, -18, 0, 26),
-		Position = UDim2.new(0.42, 6, 0.5, -13),
-		BorderSizePixel = 0,
-		Text = default,
-		Font = Enum.Font.Gotham,
-		TextSize = 12,
-		ClearTextOnFocus = false,
-		PlaceholderText = "Type here..."
-	}, frame)
-	trackTheme(input, "BackgroundColor3", "Color Hub 1")
-	trackTheme(input, "TextColor3", "Color Text")
-	trackTheme(input, "PlaceholderColor3", "Color Dark Text")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, input)
-	local stroke = createInstance("UIStroke", {Thickness = 1}, input)
-	trackTheme(stroke, "Color", "Color Stroke")
-
-	local conn = input.FocusLost:Connect(function()
-		Hub.ConfigData[title] = input.Text
-		safeCall(callback, input.Text)
-	end)
-	table.insert(Hub.Connections, conn)
-
-	Hub:RegisterControl(title, function(value)
-		input.Text = tostring(value or "")
-	end)
-
-	return {
-		Set = function(_, value)
-			input.Text = tostring(value or "")
-		end
-	}
+    addConnection(hitButton.MouseButton1Click:Connect(function() ctrl.setValue(not ctrl.getValue()) end))
+    JustHub:RegisterControl(controlId, function(v) ctrl.setValue(v) end, {getValue = ctrl.getValue, shortName = title, defaultValue = default, tab = self._tabName, section = self._sectionName})
+    task.defer(function() if isAlive() then pcall(callback, default) end end)
+    return frame
 end
 
 function SectionMethods:addSlider(options)
-	options = options or {}
-	local title = options.Name or "Slider"
-	local minVal = options.Min or 0
-	local maxVal = options.Max or 100
-	local step = options.Step or options.Float or 1
-	if step <= 0 then
-		step = 1
-	end
-	local default = options.Default or minVal
-	local callback = options.Callback or function() end
+    options = options or {}
+    local title    = options.Name or "Slider"
+    local minVal   = tonumber(options.Min) or 0
+    local maxVal   = tonumber(options.Max) or 100
+    local step     = tonumber(options.Step or options.Float) or 1
+    local default  = tonumber(options.Default) or minVal
+    local callback = options.Callback or function() end
 
-	local value = currentControlValue(title, default)
-	value = clampNumber(roundToStep(value, step), minVal, maxVal)
-	Hub.ConfigData[title] = value
+    if maxVal <= minVal then maxVal = minVal + 1 end
+    if step <= 0 then step = 1 end
+    default = math.clamp(default, minVal, maxVal)
 
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 54),
-		BackgroundTransparency = 0
-	}, self.Content)
-	applyBaseCard(frame)
+    local controlId = makeControlId(self._tabName, self._sectionName, title)
 
-	local label = createInstance("TextLabel", {
-		Size = UDim2.new(0.62, -12, 0, 18),
-		Position = UDim2.fromOffset(12, 4),
-		BackgroundTransparency = 1,
-		Text = title,
-		Font = Enum.Font.GothamMedium,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, frame)
-	trackTheme(label, "TextColor3", "Color Text")
+    local function decimalPlaces(value)
+        local formatted = string.format("%.10f", value):gsub("0+$", ""):gsub("%.$", "")
+        local dot = formatted:find("%.")
+        return dot and (#formatted - dot) or 0
+    end
 
-	local valueBox = createInstance("TextBox", {
-		Size = UDim2.fromOffset(52, 20),
-		Position = UDim2.new(1, -64, 0, 4),
-		BorderSizePixel = 0,
-		Text = string.format(formatStep(step), value),
-		Font = Enum.Font.GothamMedium,
-		TextSize = 11,
-		ClearTextOnFocus = false
-	}, frame)
-	trackTheme(valueBox, "BackgroundColor3", "Color Hub 1")
-	trackTheme(valueBox, "TextColor3", "Color Text")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, valueBox)
-	local valueStroke = createInstance("UIStroke", {Thickness = 1}, valueBox)
-	trackTheme(valueStroke, "Color", "Color Stroke")
+    local precision = math.max(decimalPlaces(minVal), decimalPlaces(maxVal), decimalPlaces(step))
 
-	local barButton = createInstance("TextButton", {
-		Size = UDim2.new(1, -24, 0, 14),
-		Position = UDim2.fromOffset(12, 28),
-		BackgroundTransparency = 1,
-		Text = "",
-		AutoButtonColor = false
-	}, frame)
+    local function formatVal(v)
+        if precision == 0 then return tostring(math.floor(v + 0.5)) end
+        return string.format("%." .. precision .. "f", v)
+    end
 
-	local track = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 6),
-		Position = UDim2.new(0, 0, 0.5, -3),
-		BorderSizePixel = 0
-	}, barButton)
-	trackTheme(track, "BackgroundColor3", "Color Hub 1")
-	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, track)
+    local function snapVal(exact)
+        exact = math.clamp(exact, minVal, maxVal)
+        if exact >= maxVal then return tonumber(string.format("%." .. precision .. "f", maxVal)) end
+        local increments = math.floor(((exact - minVal) / step) + 0.5)
+        local value = math.clamp(minVal + increments * step, minVal, maxVal)
+        return tonumber(string.format("%." .. precision .. "f", value))
+    end
 
-	local range = maxVal - minVal
-	if range == 0 then range = 1 end
+    default = snapVal(default)
 
-	local fill = createInstance("Frame", {
-		Size = UDim2.new((value - minVal) / range, 0, 1, 0),
-		BorderSizePixel = 0
-	}, track)
-	trackTheme(fill, "BackgroundColor3", "Color Theme")
-	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, fill)
-	trackChroma(fill, "BackgroundColor3")
+    local frame = createInstance("Frame", {
+        Name = title .. "Slider", Size = UDim2.new(1, 0, 0, 48),
+        BackgroundTransparency = 0.15, BorderSizePixel = 0
+    }, self.Content)
+    applyTheme(frame, "BackgroundColor3", "Color Hub 2")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame)
+    addBorder(frame, "Color Stroke", 1)
 
-	local knob = createInstance("Frame", {
-		Size = UDim2.fromOffset(14, 14),
-		Position = UDim2.new(1, -7, 0.5, -7),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BorderSizePixel = 0,
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	}, fill)
-	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, knob)
+    local label = createInstance("TextLabel", {
+        Text = title, Size = UDim2.new(0.5, -10, 0, 20), Position = UDim2.new(0, 10, 0, 4),
+        BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left
+    }, frame)
+    applyTheme(label, "TextColor3", "Color Text")
 
-	local dragging = false
-	local function render(newValue, silent)
-		value = clampNumber(roundToStep(newValue, step), minVal, maxVal)
-		Hub.ConfigData[title] = value
-		valueBox.Text = string.format(formatStep(step), value)
-		local currentRange = maxVal - minVal
-		if currentRange == 0 then currentRange = 1 end
-		local ratio = (value - minVal) / currentRange
-		tween(fill, {Size = UDim2.new(ratio, 0, 1, 0)}, 0.08)
-		if not silent then
-			safeCall(callback, value)
-		end
-	end
+    local valBox = createInstance("TextBox", {
+        Size = UDim2.new(0, 48, 0, 20), Position = UDim2.new(1, -58, 0, 4), Text = formatVal(default),
+        Font = Enum.Font.GothamMedium, TextSize = 12, ClearTextOnFocus = false, TextWrapped = true
+    }, frame)
+    applyTheme(valBox, "BackgroundColor3", "Color Hub 1")
+    applyTheme(valBox, "TextColor3", "Color Text")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, valBox)
+    addBorder(valBox, "Color Stroke", 1)
 
-	local function fromInput(input)
-		local x = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
-		render(minVal + (maxVal - minVal) * x, false)
-	end
+    local trackArea = createInstance("TextButton", {
+        Size = UDim2.new(1, -20, 0, 24), Position = UDim2.new(0, 10, 0, 24),
+        BackgroundTransparency = 1, Text = "", ZIndex = 5
+    }, frame)
+    local track = createInstance("Frame", {
+        Size = UDim2.new(1, 0, 0, 6), Position = UDim2.new(0, 0, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)
+    }, trackArea)
+    applyTheme(track, "BackgroundColor3", "Color Hub 1")
+    createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, track)
 
-	local conn1 = barButton.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			fromInput(input)
-		end
-	end)
-	table.insert(Hub.Connections, conn1)
+    local ratio = math.clamp((default - minVal) / (maxVal - minVal), 0, 1)
+    local fill = createInstance("Frame", {Size = UDim2.new(ratio, 0, 1, 0)}, track)
+    applyTheme(fill, "BackgroundColor3", "Color Theme")
+    createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, fill)
+    registerChroma(fill, "BackgroundColor3", "Color Theme")
 
-	local conn2 = UserInputService.InputChanged:Connect(function(input)
-		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-			fromInput(input)
-		end
-	end)
-	table.insert(Hub.Connections, conn2)
+    local handle = createInstance("Frame", {
+        Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(1, 0, 0.5, 0), AnchorPoint = Vector2.new(0.5, 0.5)
+    }, fill)
+    applyTheme(handle, "BackgroundColor3", "Color Text")
+    createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, handle)
 
-	local conn3 = UserInputService.InputEnded:Connect(function(input)
-		if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-			dragging = false
-		end
-	end)
-	table.insert(Hub.Connections, conn3)
+    local function updateVisuals(val)
+        valBox.Text = formatVal(val)
+        local r = math.clamp((val - minVal) / (maxVal - minVal), 0, 1)
+        tweenProperty(fill, {Size = UDim2.new(r, 0, 1, 0)}, 0.1)
+    end
 
-	local conn4 = valueBox.FocusLost:Connect(function()
-		local parsed = tonumber(valueBox.Text)
-		if parsed then
-			render(parsed, false)
-		else
-			valueBox.Text = string.format(formatStep(step), value)
-		end
-	end)
-	table.insert(Hub.Connections, conn4)
+    local ctrl = createControl({
+        id = controlId, shortName = title, default = default, callback = callback, updateVisuals = updateVisuals,
+        validate = function(v) return type(v) == "number" and v == v and v ~= math.huge and v ~= -math.huge
+            and v >= minVal and v <= maxVal, "Slider value must be a finite number within its range" end
+    })
 
-	Hub:RegisterControl(title, function(newValue)
-		render(tonumber(newValue) or value, true)
-	end)
+    local function pickFromInput(input)
+        local x = math.clamp((input.Position.X - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+        return snapVal(minVal + x * (maxVal - minVal))
+    end
 
-	render(value, true)
+    local activeDragInput = nil
 
-	return {
-		Set = function(_, newValue)
-			render(tonumber(newValue) or value, false)
-		end
-	}
+    addConnection(trackArea.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            activeDragInput = input
+            ctrl.beginEdit()
+            tweenProperty(handle, {Size = UDim2.new(0, 20, 0, 20)}, 0.15)
+            ctrl.setValueLive(pickFromInput(input))
+            local dragConn, endConn, focusLostConn
+            
+            local function endDrag()
+                tweenProperty(handle, {Size = UDim2.new(0, 16, 0, 16)}, 0.15)
+                ctrl.endEdit()
+                if dragConn then dragConn:Disconnect(); removeConnection(dragConn); dragConn = nil end
+                if endConn then endConn:Disconnect(); removeConnection(endConn); endConn = nil end
+                if focusLostConn then focusLostConn:Disconnect(); removeConnection(focusLostConn); focusLostConn = nil end
+                activeDragInput = nil
+            end
+
+            dragConn = addConnection(UserInputService.InputChanged:Connect(function(input2)
+                if not isAlive() or not activeDragInput then return end
+                local isMatchingMouse = activeDragInput.UserInputType == Enum.UserInputType.MouseButton1
+                    and input2.UserInputType == Enum.UserInputType.MouseMovement
+                local isMatchingTouch = activeDragInput.UserInputType == Enum.UserInputType.Touch
+                    and input2 == activeDragInput
+                if isMatchingMouse or isMatchingTouch then
+                    ctrl.setValueLive(pickFromInput(input2))
+                end
+            end))
+            endConn = addConnection(UserInputService.InputEnded:Connect(function(input3)
+                local isMatchingMouse = activeDragInput
+                    and activeDragInput.UserInputType == Enum.UserInputType.MouseButton1
+                    and input3.UserInputType == Enum.UserInputType.MouseButton1
+                if activeDragInput and (input3 == activeDragInput or isMatchingMouse) then
+                    endDrag()
+                end
+            end))
+            focusLostConn = addConnection(UserInputService.WindowFocusReleased:Connect(function()
+                endDrag()
+            end))
+        end
+    end))
+
+    addConnection(valBox.FocusLost:Connect(function()
+        local num = tonumber(valBox.Text)
+        if num then ctrl.setValue(snapVal(num)) else valBox.Text = formatVal(ctrl.getValue()) end
+    end))
+
+    JustHub:RegisterControl(controlId, function(v) ctrl.setValue(v) end, {getValue = ctrl.getValue, shortName = title, defaultValue = default, tab = self._tabName, section = self._sectionName})
+    task.defer(function() if isAlive() then pcall(callback, default) end end)
+    return frame
+end
+
+function SectionMethods:addLabel(options)
+    options = type(options) == "string" and {Text = options} or options or {}
+    local txt = tostring(options.Text or options.Name or "Label")
+    local align = options.Align or "Left"
+
+    local frame = createInstance("Frame", {Name = txt, Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1}, self.Content)
+    local labelObj = createInstance("TextLabel", {
+        Name = "LabelText", Text = txt, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+        Font = Enum.Font.GothamMedium, TextSize = 13, TextWrapped = true,
+        TextXAlignment = (align == "Center" and Enum.TextXAlignment.Center)
+                     or (align == "Right" and Enum.TextXAlignment.Right)
+                     or Enum.TextXAlignment.Left
+    }, frame)
+    applyTheme(labelObj, "TextColor3", "Color Text")
+    if align == "Left" then
+        createInstance("UIPadding", {PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10)}, labelObj)
+    end
+    return {SetText = function(self, newText) labelObj.Text = newText end}
+end
+
+function SectionMethods:addTextBox(options)
+    options = options or {}
+    local title    = options.Name or "TextBox"
+    local default  = type(options.Default) == "string" and options.Default or ""
+    local callback = options.Callback or function() end
+    local controlId = makeControlId(self._tabName, self._sectionName, title)
+
+    local frame = createInstance("Frame", {Name = title .. "TextBox", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    applyTheme(frame, "BackgroundColor3", "Color Hub 2")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame)
+    addBorder(frame, "Color Stroke", 1)
+
+    local label = createInstance("TextLabel", {
+        Text = title, Size = UDim2.new(0.4, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0),
+        BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left
+    }, frame)
+    applyTheme(label, "TextColor3", "Color Text")
+
+    local inputBox = createInstance("TextBox", {
+        Text = default, Size = UDim2.new(0.6, -20, 0, 30), Position = UDim2.new(0.4, 10, 0.5, -15),
+        Font = Enum.Font.Gotham, TextSize = 13, ClearTextOnFocus = false,
+        PlaceholderText = "Input here...", TextWrapped = true
+    }, frame)
+    applyTheme(inputBox, "BackgroundColor3", "Color Hub 1")
+    applyTheme(inputBox, "TextColor3", "Color Text")
+    applyTheme(inputBox, "PlaceholderColor3", "Color Dark Text")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, inputBox)
+    addBorder(inputBox, "Color Stroke", 1)
+
+    addConnection(inputBox.Focused:Connect(function() tweenProperty(inputBox, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 2"]}, 0.2) end))
+    addConnection(inputBox.FocusLost:Connect(function() tweenProperty(inputBox, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.2) end))
+
+    local ctrl = createControl({
+        id = controlId, shortName = title, default = default, callback = callback,
+        updateVisuals = function(v) if inputBox.Text ~= v then inputBox.Text = v end end,
+        validate = function(v) return type(v) == "string", "TextBox value must be a string" end
+    })
+    addConnection(inputBox.FocusLost:Connect(function() ctrl.setValue(inputBox.Text) end))
+    JustHub:RegisterControl(controlId, function(v) ctrl.setValue(v) end, {getValue = ctrl.getValue, shortName = title, defaultValue = default, tab = self._tabName, section = self._sectionName})
+    return frame
 end
 
 function SectionMethods:addDropdown(options)
-	options = options or {}
-	local title = options.Name or "Dropdown"
-	local items = options.Items or {}
-	local presets = options.Presets or {}
-	local multi = options.Multi or false
-	local callback = options.Callback or function() end
-	local default = options.Default or (multi and {} or (items[1] or ""))
-	local selected = {}
+    options = options or {}
+    local title    = options.Name or "Dropdown"
+    local default  = type(options.Default) == "string" and options.Default or ""
+    local presets  = normalizeStringArray(options.Presets)
+    local callback = options.Callback or function() end
+    local controlId = makeControlId(self._tabName, self._sectionName, title)
 
-	if multi then
-		for _, item in ipairs(default) do
-			selected[item] = true
-		end
-	end
+    local scaffold = createDropdownScaffolding(self.Content, title, default ~= "" and default or "Select...")
+    local frame, headerBtn, selectedLabel, arrow, body = scaffold.Frame, scaffold.Header, scaffold.SelectedLabel, scaffold.Arrow, scaffold.Body
 
-	Hub.ConfigData[title] = default
+    local searchBox = createInstance("TextBox", {
+        Size = UDim2.new(1, -20, 0, 26), Position = UDim2.new(0, 10, 0, 5),
+        Font = Enum.Font.Gotham, TextSize = 12, PlaceholderText = "Search...",
+        ClearTextOnFocus = false, ZIndex = 12
+    }, body)
+    applyTheme(searchBox, "BackgroundColor3", "Color Hub 1")
+    applyTheme(searchBox, "TextColor3", "Color Text")
+    applyTheme(searchBox, "PlaceholderColor3", "Color Dark Text")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, searchBox)
+    addBorder(searchBox, "Color Stroke", 1)
 
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 44),
-		BackgroundTransparency = 0
-	}, self.Content)
-	applyBaseCard(frame)
+    local scroll = createInstance("ScrollingFrame", {
+        Size = UDim2.new(1, -20, 1, -36), Position = UDim2.new(0, 10, 0, 36),
+        BackgroundTransparency = 1, ScrollBarThickness = 2, BorderSizePixel = 0,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0, 0, 0, 0), ZIndex = 11
+    }, body)
+    applyTheme(scroll, "ScrollBarImageColor3", "Color Stroke")
+    createInstance("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4)}, scroll)
 
-	local header = createInstance("TextButton", {
-		Size = UDim2.new(1, 0, 0, 44),
-		BackgroundTransparency = 1,
-		Text = "",
-		AutoButtonColor = false
-	}, frame)
+    local isOpen = false
+    local itemCache, itemConnections = {}, {}
+    local ctrl
 
-	local label = createInstance("TextLabel", {
-		Size = UDim2.new(0.48, -12, 1, 0),
-		Position = UDim2.fromOffset(12, 0),
-		BackgroundTransparency = 1,
-		Text = title,
-		Font = Enum.Font.GothamMedium,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, header)
-	trackTheme(label, "TextColor3", "Color Text")
+    local function closeDropdown()
+        isOpen = false; frame.ZIndex = 1
+        tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 42)}, 0.25)
+        tweenProperty(body, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
+        tweenProperty(arrow, {Rotation = 0}, 0.25)
+        searchBox.Text = ""
+    end
 
-	local current = createInstance("TextLabel", {
-		Size = UDim2.new(0.45, -20, 1, 0),
-		Position = UDim2.new(0.48, 0, 0, 0),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		TextTruncate = Enum.TextTruncate.AtEnd
-	}, header)
-	trackTheme(current, "TextColor3", "Color Dark Text")
+    local function clearItems()
+        for _, conn in ipairs(itemConnections) do pcall(function() conn:Disconnect() end) end
+        table.clear(itemConnections)
+        for _, btn in ipairs(scroll:GetChildren()) do
+            if btn:IsA("TextButton") then btn:Destroy() end
+        end
+        table.clear(itemCache)
+    end
 
-	local arrow = createInstance("TextLabel", {
-		Size = UDim2.fromOffset(18, 18),
-		Position = UDim2.new(1, -24, 0.5, -9),
-		BackgroundTransparency = 1,
-		Text = "⌄",
-		Font = Enum.Font.GothamBold,
-		TextSize = 16,
-		TextXAlignment = Enum.TextXAlignment.Center
-	}, header)
-	trackTheme(arrow, "TextColor3", "Color Dark Text")
+    local function createItem(data)
+        local btn = createInstance("TextButton", {
+            Name = data.Name, Size = UDim2.new(1, 0, 0, 32),
+            Text = "  " .. data.Name, Font = Enum.Font.Gotham, TextSize = 13,
+            TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false, ZIndex = 12
+        }, scroll)
+        applyTheme(btn, "BackgroundColor3", "Color Hub 1")
+        applyTheme(btn, "TextColor3", data.IsPreset and "Color Theme" or "Color Text")
+        createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, btn)
+        if data.IsPreset then registerChroma(btn, "TextColor3", "Color Theme") end
 
-	local body = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 0),
-		Position = UDim2.new(0, 0, 0, 44),
-		BackgroundTransparency = 0,
-		BorderSizePixel = 0,
-		ClipsDescendants = true
-	}, frame)
-	trackTheme(body, "BackgroundColor3", "Color Hub 2")
-	local bodyStroke = createInstance("UIStroke", {Thickness = 1}, body)
-	trackTheme(bodyStroke, "Color", "Color Stroke")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, body)
+        table.insert(itemConnections, btn.MouseEnter:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, 0.15) end))
+        table.insert(itemConnections, btn.MouseLeave:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.15) end))
+        table.insert(itemConnections, btn.MouseButton1Click:Connect(function()
+            selectedLabel.Text = data.Name
+            ctrl.setValue(data.Value)
+            closeDropdown()
+        end))
+        table.insert(itemCache, {Name = data.Name, Value = data.Value, Button = btn, IsPreset = data.IsPreset})
+    end
 
-	local scroll = createInstance("ScrollingFrame", {
-		Size = UDim2.new(1, -16, 1, -10),
-		Position = UDim2.fromOffset(8, 5),
-		BorderSizePixel = 0,
-		BackgroundTransparency = 1,
-		ScrollBarThickness = 2,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.fromOffset(0, 0)
-	}, body)
-	trackTheme(scroll, "ScrollBarImageColor3", "Color Stroke")
-	createInstance("UIListLayout", {
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, 4)
-	}, scroll)
+    local function populateCache(newList)
+        clearItems()
+        for _, p in ipairs(presets) do createItem({Name = "★ " .. p, Value = p, IsPreset = true}) end
+        for _, i in ipairs(normalizeStringArray(newList)) do createItem({Name = i, Value = i, IsPreset = false}) end
+    end
 
-	local open = false
-	local function currentText()
-		if multi then
-			local values = {}
-			for item, isOn in pairs(selected) do
-				if isOn then
-					table.insert(values, item)
-				end
-			end
-			table.sort(values)
-			return (#values > 0 and table.concat(values, ", ")) or "Select..."
-		end
-		return tostring(default ~= "" and default or "Select...")
-	end
+    local function renderItems(filterText)
+        local lower = filterText and filterText:lower() or ""
+        for _, item in ipairs(itemCache) do item.Button.Visible = (lower == "" or string.find(item.Name:lower(), lower, 1, true) ~= nil) end
+    end
 
-	local function applyCurrent()
-		current.Text = currentText()
-		if multi then
-			local values = {}
-			for item, isOn in pairs(selected) do
-				if isOn then
-					table.insert(values, item)
-				end
-			end
-			table.sort(values)
-			Hub.ConfigData[title] = values
-			safeCall(callback, values)
-		else
-			Hub.ConfigData[title] = default
-			safeCall(callback, default)
-		end
-	end
+    local function getDisplayName(value)
+        for _, item in ipairs(itemCache) do
+            if item.Value == value then return item.Name end
+        end
+        return tostring(value)
+    end
 
-	local function renderItems()
-		for _, child in ipairs(scroll:GetChildren()) do
-			if child:IsA("TextButton") then
-				child:Destroy()
-			end
-		end
+    ctrl = createControl({
+        id = controlId, shortName = title, default = default, callback = callback,
+        updateVisuals = function(v)
+            if v ~= nil and v ~= "" then selectedLabel.Text = getDisplayName(v) end
+        end,
+        validate = function(v) return type(v) == "string", "Dropdown value must be a string" end
+    })
 
-		local function createItem(name, isPreset)
-			local item = createInstance("TextButton", {
-				Size = UDim2.new(1, 0, 0, 30),
-				BorderSizePixel = 0,
-				Text = (multi and "   " or "") .. tostring(name),
-				Font = Enum.Font.Gotham,
-				TextSize = 12,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				AutoButtonColor = false
-			}, scroll)
-			trackTheme(item, "BackgroundColor3", "Color Hub 1")
-			trackTheme(item, "TextColor3", isPreset and "Color Theme" or "Color Text")
-			createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, item)
+    populateCache(options.Items or {})
+    if default ~= "" then selectedLabel.Text = getDisplayName(default) end
+    addConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(function() renderItems(searchBox.Text) end))
 
-			if isPreset then
-				trackChroma(item, "TextColor3")
-			end
+    addConnection(headerBtn.MouseButton1Click:Connect(function()
+        isOpen = not isOpen
+        if isOpen then
+            frame.ZIndex = 50
+            tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 192)}, 0.3)
+            tweenProperty(body, {Size = UDim2.new(1, 0, 0, 150)}, 0.3)
+            tweenProperty(arrow, {Rotation = 180}, 0.3)
+            searchBox.Text = ""
+            renderItems()
+        else closeDropdown() end
+    end))
 
-			local mark = nil
-			if multi then
-				mark = createInstance("Frame", {
-					Size = UDim2.fromOffset(12, 12),
-					Position = UDim2.fromOffset(8, 9),
-					BorderSizePixel = 0
-				}, item)
-				trackTheme(mark, "BackgroundColor3", selected[name] and "Color Theme" or "Color Hub 2")
-				createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, mark)
-				local markStroke = createInstance("UIStroke", {Thickness = 1}, mark)
-				trackTheme(markStroke, "Color", "Color Stroke")
-			end
+    JustHub:RegisterControl(controlId, function(v) ctrl.setValue(v) end, {getValue = ctrl.getValue, shortName = title, defaultValue = default, tab = self._tabName, section = self._sectionName})
+    return {Refresh = function(self, newList) populateCache(newList); renderItems(searchBox.Text) end, Clear = function(self) clearItems(); selectedLabel.Text = "Select..."; ctrl.setValue(""); closeDropdown() end, GetValue = function() return ctrl.getValue() end}
+end
 
-			local conn = item.MouseButton1Click:Connect(function()
-				if multi then
-					selected[name] = not selected[name]
-					if mark then
-						mark.BackgroundColor3 = selected[name] and currentTheme()["Color Theme"] or currentTheme()["Color Hub 2"]
-						if selected[name] then
-							trackChroma(mark, "BackgroundColor3")
-						else
-							removeTrackedChroma(mark)
-						end
-					end
-					applyCurrent()
-				else
-					default = name
-					applyCurrent()
-					open = false
-					tween(frame, {Size = UDim2.new(1, 0, 0, 44)}, 0.16)
-					tween(body, {Size = UDim2.new(1, 0, 0, 0)}, 0.16)
-					tween(arrow, {Rotation = 0}, 0.16)
-				end
-			end)
-			table.insert(Hub.Connections, conn)
-		end
+function SectionMethods:addMultiDropdown(options)
+    options = options or {}
+    local title    = options.Name or "Multi Dropdown"
+    local default  = normalizeStringArray(options.Default)
+    local presets  = normalizeStringArray(options.Presets)
+    local callback = options.Callback or function() end
+    local controlId = makeControlId(self._tabName, self._sectionName, title)
 
-		if not multi then
-			for _, preset in ipairs(presets) do
-				createItem("★ " .. tostring(preset), true)
-			end
-		end
-		for _, item in ipairs(items) do
-			createItem(item, false)
-		end
-	end
+    local defaultLabel = #default > 0 and table.concat(default, ", ") or "Select..."
+    local scaffold = createDropdownScaffolding(self.Content, title, defaultLabel)
+    local frame, headerBtn, selectedLabel, arrow, body = scaffold.Frame, scaffold.Header, scaffold.SelectedLabel, scaffold.Arrow, scaffold.Body
 
-	renderItems()
-	applyCurrent()
+    local controlBar = createInstance("Frame", {
+        Size = UDim2.new(1, -20, 0, 24), Position = UDim2.new(0, 10, 0, 5), BackgroundTransparency = 1, ZIndex = 12
+    }, body)
+    createInstance("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, controlBar)
 
-	local function setOpen(state)
-		open = state and true or false
-		tween(arrow, {Rotation = open and 180 or 0}, 0.16)
-		tween(frame, {Size = open and UDim2.new(1, 0, 0, 176) or UDim2.new(1, 0, 0, 44)}, 0.18)
-		tween(body, {Size = open and UDim2.new(1, 0, 0, 132) or UDim2.new(1, 0, 0, 0)}, 0.18)
-	end
+    local selectAllBtn = createInstance("TextButton", {Text = "Select All", Size = UDim2.new(0, 70, 1, 0), Font = Enum.Font.GothamBold, TextSize = 11, AutoButtonColor = false, ZIndex = 12}, controlBar)
+    applyTheme(selectAllBtn, "BackgroundColor3", "Color Theme"); applyTheme(selectAllBtn, "TextColor3", "Color Text")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, selectAllBtn)
+    registerChroma(selectAllBtn, "BackgroundColor3", "Color Theme")
 
-	local conn = header.MouseButton1Click:Connect(function()
-		setOpen(not open)
-	end)
-	table.insert(Hub.Connections, conn)
+    local clearAllBtn = createInstance("TextButton", {Text = "Clear All", Size = UDim2.new(0, 70, 1, 0), Font = Enum.Font.GothamBold, TextSize = 11, AutoButtonColor = false, ZIndex = 12}, controlBar)
+    applyTheme(clearAllBtn, "BackgroundColor3", "Color Hub 1"); applyTheme(clearAllBtn, "TextColor3", "Color Text")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, clearAllBtn); addBorder(clearAllBtn, "Color Stroke", 1)
 
-	Hub:RegisterControl(title, function(value)
-		if multi and type(value) == "table" then
-			selected = {}
-			for _, item in ipairs(value) do
-				selected[item] = true
-			end
-			applyCurrent()
-			renderItems()
-		elseif (not multi) and value ~= nil then
-			default = tostring(value)
-			applyCurrent()
-		end
-	end)
+    local searchBox = createInstance("TextBox", {
+        Size = UDim2.new(1, -148, 1, 0), Font = Enum.Font.Gotham, TextSize = 12, PlaceholderText = "Search...", ClearTextOnFocus = false, ZIndex = 12
+    }, controlBar)
+    applyTheme(searchBox, "BackgroundColor3", "Color Hub 1"); applyTheme(searchBox, "TextColor3", "Color Text"); applyTheme(searchBox, "PlaceholderColor3", "Color Dark Text")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, searchBox); addBorder(searchBox, "Color Stroke", 1)
 
-	return {
-		Refresh = function(_, newItems)
-			items = newItems or {}
-			renderItems()
-		end,
-		Clear = function(_)
-			items = {}
-			default = multi and {} or ""
-			selected = {}
-			applyCurrent()
-			renderItems()
-		end
-	}
+    local scroll = createInstance("ScrollingFrame", {
+        Size = UDim2.new(1, -20, 1, -34), Position = UDim2.new(0, 10, 0, 34), BackgroundTransparency = 1, ScrollBarThickness = 2, BorderSizePixel = 0, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0, 0, 0, 0), ZIndex = 11
+    }, body)
+    applyTheme(scroll, "ScrollBarImageColor3", "Color Stroke")
+    createInstance("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4)}, scroll)
+
+    local isOpen = false
+    local activeItems = {}
+    for _, v in ipairs(default) do activeItems[v] = true end
+
+    local itemCache, itemConnections = {}, {}
+    local suppressCallback = false
+    local ctrl
+
+    local function computeSelection()
+        local sel = {}
+        for k, v in pairs(activeItems) do if v then table.insert(sel, k) end end
+        table.sort(sel); return sel
+    end
+
+    local function closeDropdown()
+        isOpen = false; frame.ZIndex = 1
+        tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 42)}, 0.25)
+        tweenProperty(body, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
+        tweenProperty(arrow, {Rotation = 0}, 0.25)
+        searchBox.Text = ""
+    end
+
+    local function clearItems()
+        for _, conn in ipairs(itemConnections) do pcall(function() conn:Disconnect() end) end
+        table.clear(itemConnections)
+        for _, btn in ipairs(scroll:GetChildren()) do if btn:IsA("TextButton") then btn:Destroy() end end
+        table.clear(itemCache)
+    end
+
+    local function renderItems(filterText)
+        local lower = filterText and filterText:lower() or ""
+        local t = getCurrentTheme(JustHub.Save.Theme)
+        for _, item in ipairs(itemCache) do
+            local match = (lower == "" or string.find(item.Name:lower(), lower, 1, true) ~= nil)
+            item.Button.Visible = match
+            if match then
+                local isActive = activeItems[item.RawName]
+                item.Check.BackgroundColor3 = isActive and t["Color Theme"] or t["Color Hub 2"]
+                if isActive then
+                    registerChroma(item.Check, "BackgroundColor3", "Color Theme")
+                    JustHub:UpdateThemeObject(item.Check, "BackgroundColor3", "Color Theme")
+                else
+                    JustHub:UnregisterChroma(item.Check, "BackgroundColor3")
+                    JustHub:UpdateThemeObject(item.Check, "BackgroundColor3", "Color Hub 2")
+                end
+            end
+        end
+    end
+
+    local function createItem(data)
+        local btn = createInstance("TextButton", {Name = data.Name, Size = UDim2.new(1, 0, 0, 32), Text = "      " .. data.Name, Font = Enum.Font.Gotham, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false, ZIndex = 12}, scroll)
+        applyTheme(btn, "BackgroundColor3", "Color Hub 1"); applyTheme(btn, "TextColor3", data.IsPreset and "Color Theme" or "Color Text")
+        createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, btn)
+        if data.IsPreset then registerChroma(btn, "TextColor3", "Color Theme") end
+
+        local check = createInstance("Frame", {Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 6, 0.5, -8), BorderSizePixel = 0, ZIndex = 12}, btn)
+        createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, check); addBorder(check, "Color Stroke", 1)
+
+        table.insert(itemConnections, btn.MouseEnter:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, 0.15) end))
+        table.insert(itemConnections, btn.MouseLeave:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.15) end))
+        table.insert(itemConnections, btn.MouseButton1Click:Connect(function()
+            activeItems[data.RawName] = not activeItems[data.RawName]
+            local sel = computeSelection()
+            selectedLabel.Text = #sel > 0 and table.concat(sel, ", ") or "Select..."
+            renderItems(searchBox.Text)
+            ctrl.setValue(sel)
+        end))
+        table.insert(itemCache, {Name = data.Name, RawName = data.RawName, Button = btn, Check = check, IsPreset = data.IsPreset})
+    end
+
+    local function populateCache(newList)
+        clearItems()
+        for _, p in ipairs(presets) do createItem({Name = "★ " .. p, RawName = p, IsPreset = true}) end
+        for _, i in ipairs(normalizeStringArray(newList)) do createItem({Name = i, RawName = i, IsPreset = false}) end
+    end
+
+    ctrl = createControl({
+        id = controlId, shortName = title, default = default, callback = callback,
+        updateVisuals = function(v)
+            if suppressCallback then return end
+            table.clear(activeItems)
+            for _, item in ipairs(v) do activeItems[item] = true end
+            local sel = computeSelection()
+            selectedLabel.Text = #sel > 0 and table.concat(sel, ", ") or "Select..."
+            renderItems(searchBox.Text)
+        end,
+        validate = function(v)
+            if type(v) ~= "table" then return false, "MultiDropdown value must be an array" end
+            local count, maxIndex = 0, 0
+            for key, item in pairs(v) do
+                if type(key) ~= "number" or key < 1 or key % 1 ~= 0 or type(item) ~= "string" then
+                    return false, "MultiDropdown values must be an array of strings"
+                end
+                count = count + 1
+                if key > maxIndex then maxIndex = key end
+            end
+            return count == maxIndex and count == #v, "MultiDropdown values must be a dense array"
+        end
+    })
+
+    populateCache(options.Items or {})
+    addConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(function() renderItems(searchBox.Text) end))
+
+    addConnection(selectAllBtn.MouseButton1Click:Connect(function()
+        suppressCallback = true
+        for _, item in ipairs(itemCache) do activeItems[item.RawName] = true end
+        suppressCallback = false
+        local sel = computeSelection()
+        selectedLabel.Text = #sel > 0 and table.concat(sel, ", ") or "Select..."
+        renderItems(searchBox.Text)
+        ctrl.setValue(sel)
+    end))
+    addConnection(clearAllBtn.MouseButton1Click:Connect(function()
+        suppressCallback = true
+        table.clear(activeItems)
+        suppressCallback = false
+        selectedLabel.Text = "Select..."
+        renderItems(searchBox.Text)
+        ctrl.setValue({})
+    end))
+
+    addConnection(headerBtn.MouseButton1Click:Connect(function()
+        isOpen = not isOpen
+        if isOpen then
+            frame.ZIndex = 50
+            tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 192)}, 0.3)
+            tweenProperty(body, {Size = UDim2.new(1, 0, 0, 150)}, 0.3)
+            tweenProperty(arrow, {Rotation = 180}, 0.3)
+            searchBox.Text = ""; renderItems()
+        else closeDropdown() end
+    end))
+
+    JustHub:RegisterControl(controlId, function(v) ctrl.setValue(v) end, {getValue = ctrl.getValue, shortName = title, defaultValue = default, tab = self._tabName, section = self._sectionName})
+    return {Refresh = function(self, newList) populateCache(newList); renderItems(searchBox.Text) end, GetValue = function() return ctrl.getValue() end}
 end
 
 function SectionMethods:addColorPicker(options)
-	options = options or {}
-	local title = options.Name or "ColorPicker"
-	local default = options.Default or Color3.fromRGB(255, 255, 255)
-	local callback = options.Callback or function() end
+    options = options or {}
+    local title    = options.Name or "ColorPicker"
+    local default  = typeof(options.Default) == "Color3" and options.Default or Color3.fromRGB(255, 255, 255)
+    local callback = options.Callback or function() end
+    local controlId = makeControlId(self._tabName, self._sectionName, title)
 
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 84),
-		BackgroundTransparency = 0
-	}, self.Content)
-	applyBaseCard(frame)
+    local frame = createInstance("Frame", {Name = title .. "ColorPicker", Size = UDim2.new(1, 0, 0, 80), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    applyTheme(frame, "BackgroundColor3", "Color Hub 2")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
 
-	local label = createInstance("TextLabel", {
-		Size = UDim2.new(1, -70, 0, 18),
-		Position = UDim2.fromOffset(12, 4),
-		BackgroundTransparency = 1,
-		Text = title,
-		Font = Enum.Font.GothamMedium,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, frame)
-	trackTheme(label, "TextColor3", "Color Text")
+    local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(1, -20, 0, 24), Position = UDim2.new(0, 10, 0, 2), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
+    applyTheme(label, "TextColor3", "Color Text")
 
-	local preview = createInstance("Frame", {
-		Size = UDim2.fromOffset(46, 20),
-		Position = UDim2.new(1, -58, 0, 4),
-		BorderSizePixel = 0,
-		BackgroundColor3 = default
-	}, frame)
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, preview)
-	local previewStroke = createInstance("UIStroke", {Thickness = 1}, preview)
-	trackTheme(previewStroke, "Color", "Color Stroke")
+    local preview = createInstance("Frame", {Size = UDim2.new(0, 44, 0, 22), Position = UDim2.new(1, -54, 0, 4), BackgroundColor3 = default, BorderSizePixel = 0}, frame)
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, preview); addBorder(preview, "Color Stroke", 1)
 
-	local function box(x, text, tint)
-		local b = createInstance("TextBox", {
-			Size = UDim2.fromOffset(42, 22),
-			Position = UDim2.fromOffset(x, 34),
-			Text = text,
-			Font = Enum.Font.GothamMedium,
-			TextSize = 11,
-			ClearTextOnFocus = false,
-			BorderSizePixel = 0
-		}, frame)
-		trackTheme(b, "BackgroundColor3", "Color Hub 1")
-		trackTheme(b, "TextColor3", "Color Text")
-		createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, b)
-		local stroke = createInstance("UIStroke", {Thickness = 1}, b)
-		trackTheme(stroke, "Color", "Color Stroke")
-		if tint then
-			b.TextColor3 = tint
-		end
-		return b
-	end
+    local presetColors = {Color3.fromRGB(255, 0, 0), Color3.fromRGB(0, 255, 0), Color3.fromRGB(0, 0, 255), Color3.fromRGB(255, 255, 0), Color3.fromRGB(255, 0, 255), Color3.fromRGB(0, 255, 255), Color3.fromRGB(255, 255, 255), Color3.fromRGB(0, 0, 0)}
+    local presetFrame = createInstance("Frame", {Size = UDim2.new(1, -20, 0, 24), Position = UDim2.new(0, 10, 0, 30), BackgroundTransparency = 1}, frame)
+    createInstance("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, presetFrame)
 
-	local rBox = box(12, tostring(math.floor(default.R * 255)), Color3.fromRGB(255, 120, 120))
-	local gBox = box(58, tostring(math.floor(default.G * 255)), Color3.fromRGB(120, 255, 120))
-	local bBox = box(104, tostring(math.floor(default.B * 255)), Color3.fromRGB(120, 160, 255))
-	local hexBox = box(150, "#" .. default:ToHex(), nil)
-	hexBox.Size = UDim2.fromOffset(74, 22)
+    local inputFrame = createInstance("Frame", {Size = UDim2.new(1, -20, 0, 24), Position = UDim2.new(0, 10, 0, 58), BackgroundTransparency = 1}, frame)
+    createInstance("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, inputFrame)
 
-	local function applyColor(color)
-		preview.BackgroundColor3 = color
-		rBox.Text = tostring(math.floor(color.R * 255))
-		gBox.Text = tostring(math.floor(color.G * 255))
-		bBox.Text = tostring(math.floor(color.B * 255))
-		hexBox.Text = "#" .. color:ToHex():upper()
-		Hub.ConfigData[title] = color
-		safeCall(callback, color)
-	end
+    local rBox = createInstance("TextBox", {Text = tostring(math.floor(default.R * 255)), Size = UDim2.new(0, 40, 1, 0), TextColor3 = Color3.fromRGB(255, 100, 100), Font = Enum.Font.GothamMedium, TextSize = 12, ClearTextOnFocus = false}, inputFrame)
+    local gBox = createInstance("TextBox", {Text = tostring(math.floor(default.G * 255)), Size = UDim2.new(0, 40, 1, 0), TextColor3 = Color3.fromRGB(100, 255, 100), Font = Enum.Font.GothamMedium, TextSize = 12, ClearTextOnFocus = false}, inputFrame)
+    local bBox = createInstance("TextBox", {Text = tostring(math.floor(default.B * 255)), Size = UDim2.new(0, 40, 1, 0), TextColor3 = Color3.fromRGB(100, 150, 255), Font = Enum.Font.GothamMedium, TextSize = 12, ClearTextOnFocus = false}, inputFrame)
+    local hexBox = createInstance("TextBox", {Text = "#" .. default:ToHex():upper(), Size = UDim2.new(0, 60, 1, 0), Font = Enum.Font.GothamMedium, TextSize = 12, ClearTextOnFocus = false}, inputFrame)
+    applyTheme(hexBox, "TextColor3", "Color Text")
+    for _, box in ipairs({rBox, gBox, bBox, hexBox}) do
+        applyTheme(box, "BackgroundColor3", "Color Hub 1")
+        createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, box); addBorder(box, "Color Stroke", 1)
+    end
 
-	local function fromRGB()
-		local r = clampNumber(tonumber(rBox.Text) or 0, 0, 255)
-		local g = clampNumber(tonumber(gBox.Text) or 0, 0, 255)
-		local b = clampNumber(tonumber(bBox.Text) or 0, 0, 255)
-		applyColor(Color3.fromRGB(r, g, b))
-	end
+    local function syncBoxes(c3)
+        preview.BackgroundColor3 = c3
+        rBox.Text = tostring(math.floor(c3.R * 255 + 0.5))
+        gBox.Text = tostring(math.floor(c3.G * 255 + 0.5))
+        bBox.Text = tostring(math.floor(c3.B * 255 + 0.5))
+        hexBox.Text = "#" .. c3:ToHex():upper()
+    end
 
-	local function fromHex()
-		local value = hexBox.Text:gsub("#", "")
-		local ok, color = pcall(Color3.fromHex, value)
-		if ok and color then
-			applyColor(color)
-		else
-			hexBox.Text = "#" .. preview.BackgroundColor3:ToHex():upper()
-		end
-	end
+    local ctrl = createControl({
+        id = controlId, shortName = title, default = default, callback = callback,
+        updateVisuals = function(v) syncBoxes(v) end,
+        validate = function(v) return typeof(v) == "Color3", "ColorPicker value must be Color3" end
+    })
 
-	table.insert(Hub.Connections, rBox.FocusLost:Connect(fromRGB))
-	table.insert(Hub.Connections, gBox.FocusLost:Connect(fromRGB))
-	table.insert(Hub.Connections, bBox.FocusLost:Connect(fromRGB))
-	table.insert(Hub.Connections, hexBox.FocusLost:Connect(fromHex))
+    for _, c in ipairs(presetColors) do
+        local btn = createInstance("TextButton", {Size = UDim2.new(0, 24, 0, 24), BackgroundColor3 = c, Text = "", AutoButtonColor = false, BorderSizePixel = 0}, presetFrame)
+        createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, btn)
+        addConnection(btn.MouseButton1Click:Connect(function() ctrl.setValue(c) end))
+    end
 
-	Hub:RegisterControl(title, function(value)
-		if typeof(value) == "Color3" then
-			preview.BackgroundColor3 = value
-			rBox.Text = tostring(math.floor(value.R * 255))
-			gBox.Text = tostring(math.floor(value.G * 255))
-			bBox.Text = tostring(math.floor(value.B * 255))
-			hexBox.Text = "#" .. value:ToHex():upper()
-		end
-	end)
+    local function updateColorRGB()
+        local rr = math.clamp(tonumber(rBox.Text) or 0, 0, 255); local gg = math.clamp(tonumber(gBox.Text) or 0, 0, 255); local bb = math.clamp(tonumber(bBox.Text) or 0, 0, 255)
+        local c3 = Color3.fromRGB(rr, gg, bb)
+        if c3 ~= ctrl.getValue() then ctrl.setValue(c3) else syncBoxes(c3) end
+    end
+    local function updateColorHex()
+        local hx = hexBox.Text:gsub("#", "")
+        local ok, c3 = pcall(function() return Color3.fromHex(hx) end)
+        if ok and c3 then
+            if c3 ~= ctrl.getValue() then ctrl.setValue(c3) else syncBoxes(c3) end
+        else
+            hexBox.Text = "#" .. ctrl.getValue():ToHex():upper()
+        end
+    end
 
-	Hub.ConfigData[title] = default
-	return frame
+    addConnection(rBox.FocusLost:Connect(updateColorRGB)); addConnection(gBox.FocusLost:Connect(updateColorRGB)); addConnection(bBox.FocusLost:Connect(updateColorRGB)); addConnection(hexBox.FocusLost:Connect(updateColorHex))
+    JustHub:RegisterControl(controlId, function(v) ctrl.setValue(v) end, {getValue = ctrl.getValue, shortName = title, defaultValue = default, tab = self._tabName, section = self._sectionName})
+    return frame
 end
 
 function SectionMethods:addScriptBox(options)
-	options = options or {}
-	local title = options.Name or "ScriptBox"
-	local default = options.Default or ""
-	local callback = options.Callback or function() end
+    options = options or {}
+    local title    = options.Name or "ScriptBox"
+    local default  = type(options.Default) == "string" and options.Default or ""
+    local callback = options.Callback or function() end
+    local controlId = makeControlId(self._tabName, self._sectionName, title)
 
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 96),
-		BackgroundTransparency = 0
-	}, self.Content)
-	applyBaseCard(frame)
+    local frame = createInstance("Frame", {Name = title .. "ScriptBox", Size = UDim2.new(1, 0, 0, 96), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
 
-	local label = createInstance("TextLabel", {
-		Size = UDim2.new(1, -66, 0, 18),
-		Position = UDim2.fromOffset(12, 4),
-		BackgroundTransparency = 1,
-		Text = title,
-		Font = Enum.Font.GothamMedium,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, frame)
-	trackTheme(label, "TextColor3", "Color Text")
+    local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(1, -10, 0, 20), Position = UDim2.new(0, 10, 0, 4), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
+    applyTheme(label, "TextColor3", "Color Text")
 
-	local input = createInstance("TextBox", {
-		Size = UDim2.new(1, -70, 0, 58),
-		Position = UDim2.fromOffset(12, 28),
-		BorderSizePixel = 0,
-		Text = default,
-		Font = Enum.Font.Code,
-		TextSize = 12,
-		ClearTextOnFocus = false,
-		MultiLine = true,
-		TextWrapped = true,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top,
-		PlaceholderText = "Paste code here..."
-	}, frame)
-	trackTheme(input, "BackgroundColor3", "Color Hub 1")
-	trackTheme(input, "TextColor3", "Color Text")
-	trackTheme(input, "PlaceholderColor3", "Color Dark Text")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, input)
-	local stroke = createInstance("UIStroke", {Thickness = 1}, input)
-	trackTheme(stroke, "Color", "Color Stroke")
+    local inputBox = createInstance("TextBox", {Text = default, Size = UDim2.new(1, -80, 0, 56), Position = UDim2.new(0, 10, 0, 30), Font = Enum.Font.Code, TextSize = 13, ClearTextOnFocus = false, MultiLine = true, TextWrapped = true, PlaceholderText = "Paste script here...", TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, frame)
+    applyTheme(inputBox, "BackgroundColor3", "Color Hub 1"); applyTheme(inputBox, "TextColor3", "Color Text"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, inputBox); addBorder(inputBox, "Color Stroke", 1)
 
-	local run = createInstance("TextButton", {
-		Size = UDim2.fromOffset(42, 42),
-		Position = UDim2.new(1, -50, 1, -50),
-		Text = "▶",
-		Font = Enum.Font.GothamBold,
-		TextSize = 14,
-		AutoButtonColor = false
-	}, frame)
-	trackTheme(run, "BackgroundColor3", "Color Theme")
-	trackTheme(run, "TextColor3", "Color Hub 1")
-	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, run)
-	trackChroma(run, "BackgroundColor3")
+    local runBtn = createInstance("TextButton", {Text = "Run", Size = UDim2.new(0, 50, 0, 34), Position = UDim2.new(1, -60, 0, 40), TextColor3 = Color3.fromRGB(20, 20, 20), Font = Enum.Font.GothamBold, TextSize = 13, AutoButtonColor = false}, frame)
+    applyTheme(runBtn, "BackgroundColor3", "Color Theme"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, runBtn); registerChroma(runBtn, "BackgroundColor3", "Color Theme")
 
-	local conn = run.MouseButton1Click:Connect(function()
-		safeCall(callback, input.Text)
-	end)
-	table.insert(Hub.Connections, conn)
+    addConnection(runBtn.MouseEnter:Connect(function() tweenProperty(runBtn, {BackgroundTransparency = 0.2}, 0.15) end))
+    addConnection(runBtn.MouseLeave:Connect(function() tweenProperty(runBtn, {BackgroundTransparency = 0}, 0.15) end))
+    addConnection(runBtn.MouseButton1Click:Connect(function()
+        task.spawn(function()
+            local ok, err = pcall(callback, inputBox.Text)
+            if not ok then warn("[JustHub] ScriptBox run error: " .. tostring(err)) end
+        end)
+    end))
 
-	Hub:RegisterControl(title, function(value)
-		input.Text = tostring(value or "")
-	end)
-
-	return frame
+    local ctrl = createControl({
+        id = controlId, shortName = title, default = default, callback = function() end,
+        updateVisuals = function(v) if inputBox.Text ~= v then inputBox.Text = v end end,
+        validate = function(v) return type(v) == "string", "ScriptBox value must be a string" end
+    })
+    JustHub:RegisterControl(controlId, function(v) ctrl.setValue(v) end, {getValue = ctrl.getValue, shortName = title, defaultValue = default, tab = self._tabName, section = self._sectionName})
+    return frame
 end
 
 function SectionMethods:addBind(options)
-	options = options or {}
-	local title = options.Name or "KeyBind"
-	local default = options.Default or "RightShift"
-	local callback = options.Callback or function() end
+    options = options or {}
+    local title    = options.Name or "KeyBind"
+    local default  = options.Default or "RightShift"
+    if typeof(default) == "EnumItem" and default.EnumType == Enum.KeyCode then
+        default = default.Name
+    elseif type(default) ~= "string" then
+        default = "RightShift"
+    end
+    local callback = options.Callback or function() end
+    local controlId = makeControlId(self._tabName, self._sectionName, title)
 
-	local blacklist = {
-		[Enum.KeyCode.W] = true,
-		[Enum.KeyCode.A] = true,
-		[Enum.KeyCode.S] = true,
-		[Enum.KeyCode.D] = true,
-		[Enum.KeyCode.Space] = true,
-		[Enum.KeyCode.Tab] = true,
-		[Enum.KeyCode.Escape] = true,
-		[Enum.KeyCode.Backspace] = true,
-		[Enum.KeyCode.Return] = true,
-		[Enum.KeyCode.Unknown] = true
-	}
+    local blacklist = {
+        [Enum.KeyCode.W] = true, [Enum.KeyCode.A] = true, [Enum.KeyCode.S] = true, [Enum.KeyCode.D] = true,
+        [Enum.KeyCode.Space] = true, [Enum.KeyCode.Escape] = true, [Enum.KeyCode.Tab] = true,
+        [Enum.KeyCode.Backspace] = true, [Enum.KeyCode.Return] = true, [Enum.KeyCode.Unknown] = true
+    }
 
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 40),
-		BackgroundTransparency = 0
-	}, self.Content)
-	applyBaseCard(frame)
+    local frame = createInstance("Frame", {Name = title .. "BindControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
 
-	local label = createInstance("TextLabel", {
-		Size = UDim2.new(0.55, -12, 1, 0),
-		Position = UDim2.fromOffset(12, 0),
-		BackgroundTransparency = 1,
-		Text = title,
-		Font = Enum.Font.GothamMedium,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, frame)
-	trackTheme(label, "TextColor3", "Color Text")
+    local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(0.6, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
+    applyTheme(label, "TextColor3", "Color Text")
 
-	local keyBox = createInstance("TextBox", {
-		Size = UDim2.fromOffset(96, 24),
-		Position = UDim2.new(1, -108, 0.5, -12),
-		Text = tostring(default),
-		Font = Enum.Font.GothamSemibold,
-		TextSize = 11,
-		ClearTextOnFocus = false,
-		BorderSizePixel = 0
-	}, frame)
-	trackTheme(keyBox, "BackgroundColor3", "Color Hub 1")
-	trackTheme(keyBox, "TextColor3", "Color Text")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, keyBox)
-	local stroke = createInstance("UIStroke", {Thickness = 1}, keyBox)
-	trackTheme(stroke, "Color", "Color Stroke")
+    local inputBox = createInstance("TextBox", {Text = default, Size = UDim2.new(0.4, -20, 0, 30), Position = UDim2.new(0.6, 10, 0.5, -15), Font = Enum.Font.GothamBold, TextSize = 12, ClearTextOnFocus = false}, frame)
+    applyTheme(inputBox, "BackgroundColor3", "Color Hub 1"); applyTheme(inputBox, "TextColor3", "Color Text"); createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, inputBox); addBorder(inputBox, "Color Stroke", 1)
 
-	local binding = nil
-	local captureConn = nil
-	local triggerConn = nil
+    local triggerConn = nil
+    local waitConn, focusLostConn = nil, nil
+    local ctrl
 
-	local function setBind(keyCode)
-		if blacklist[keyCode] then
-			keyBox.Text = binding and binding.Name or "None"
-			return
-		end
-		binding = keyCode
-		Hub.ConfigData[title] = keyCode.Name
-		keyBox.Text = keyCode.Name
-		if triggerConn then
-			triggerConn:Disconnect()
-		end
-		triggerConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-			if not gameProcessed and binding and input.KeyCode == binding then
-				safeCall(callback)
-			end
-		end)
-		table.insert(Hub.Connections, triggerConn)
-	end
+    local function disconnectTrigger()
+        if triggerConn then 
+            triggerConn:Disconnect()
+            removeConnection(triggerConn)
+            triggerConn = nil 
+        end
+    end
 
-	for _, keyCode in ipairs(Enum.KeyCode:GetEnumItems()) do
-		if keyCode.Name:lower() == tostring(default):lower() then
-			setBind(keyCode)
-			break
-		end
-	end
+    local function applyKeyName(keyName)
+        disconnectTrigger()
+        local keyEnum = type(keyName) == "string" and Enum.KeyCode[keyName] or nil
+        if not keyEnum or blacklist[keyEnum] then
+            inputBox.Text = "None"
+            if ctrl.getValue() ~= "None" then ctrl.setValue("None") end
+            return "None"
+        end
+        triggerConn = UserInputService.InputBegan:Connect(function(input, gp)
+            if gp then return end
+            if input.KeyCode == keyEnum then
+                task.spawn(function()
+                    local ok, err = pcall(callback)
+                    if not ok then warn("[JustHub] Bind callback error [" .. controlId .. "]: " .. tostring(err)) end
+                end)
+            end
+        end)
+        addConnection(triggerConn)
+        inputBox.Text = keyEnum.Name
+        if ctrl.getValue() ~= keyEnum.Name then ctrl.setValue(keyEnum.Name) end
+        return keyEnum.Name
+    end
 
-	local conn = keyBox.Focused:Connect(function()
-		keyBox.Text = "Press Key"
-		if captureConn then
-			captureConn:Disconnect()
-		end
-		captureConn = UserInputService.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.Keyboard then
-				setBind(input.KeyCode)
-				keyBox:ReleaseFocus()
-				if captureConn then
-					captureConn:Disconnect()
-					captureConn = nil
-				end
-			end
-		end)
-		table.insert(Hub.Connections, captureConn)
-	end)
-	table.insert(Hub.Connections, conn)
+    ctrl = createControl({
+        id = controlId, shortName = title, default = default, callback = function() end, updateVisuals = function() end,
+        validate = function(v) return type(v) == "string", "Keybind value must be a key name string" end
+    })
 
-	Hub:RegisterControl(title, function(value)
-		if typeof(value) == "EnumItem" then
-			setBind(value)
-		elseif type(value) == "string" then
-			for _, keyCode in ipairs(Enum.KeyCode:GetEnumItems()) do
-				if keyCode.Name:lower() == value:lower() then
-					setBind(keyCode)
-					break
-				end
-			end
-		end
-	end)
+    local wasApplyingConfig = JustHub._isApplyingConfig
+    JustHub._isApplyingConfig = true
+    local matched = false
+    for _, kEnum in pairs(Enum.KeyCode:GetEnumItems()) do
+        if kEnum.Name:lower() == default:lower() then applyKeyName(kEnum.Name); matched = true; break end
+    end
+    if not matched then applyKeyName(default) end
+    JustHub._isApplyingConfig = wasApplyingConfig
 
-	return frame
+    addConnection(inputBox.Focused:Connect(function()
+        inputBox.Text = "Press Key..."
+        if waitConn then waitConn:Disconnect(); removeConnection(waitConn) end
+        if focusLostConn then focusLostConn:Disconnect(); removeConnection(focusLostConn) end
+
+        waitConn = addConnection(UserInputService.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Keyboard then
+                if waitConn then waitConn:Disconnect(); removeConnection(waitConn); waitConn = nil end
+                if focusLostConn then focusLostConn:Disconnect(); removeConnection(focusLostConn); focusLostConn = nil end
+                local keyName = input.KeyCode.Name
+                inputBox:ReleaseFocus()
+                if blacklist[input.KeyCode] then
+                    inputBox.Text = ctrl.getValue()
+                else
+                    ctrl.setValue(keyName)
+                    applyKeyName(keyName)
+                end
+            end
+        end))
+        focusLostConn = addConnection(inputBox.FocusLost:Connect(function()
+            if waitConn then waitConn:Disconnect(); removeConnection(waitConn); waitConn = nil end
+            if focusLostConn then focusLostConn:Disconnect(); removeConnection(focusLostConn); focusLostConn = nil end
+            inputBox.Text = ctrl.getValue()
+        end))
+    end))
+
+    JustHub:RegisterControl(controlId, function(v) applyKeyName(v) end, {getValue = ctrl.getValue, shortName = title, defaultValue = default, tab = self._tabName, section = self._sectionName})
+    return frame
+end
+
+function SectionMethods:addButton(options)
+    options = options or {}
+    local title    = options.Name or "Button"
+    local btnText  = options.ButtonText or "Click"
+    local callback = options.Callback or function() end
+
+    local frame = createInstance("Frame", {Name = title .. "ButtonControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
+
+    local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(0.6, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
+    applyTheme(label, "TextColor3", "Color Text")
+
+    local btn = createInstance("TextButton", {Text = btnText, Size = UDim2.new(0.4, -20, 0, 30), Position = UDim2.new(0.6, 10, 0.5, -15), Font = Enum.Font.GothamBold, TextSize = 13, AutoButtonColor = false}, frame)
+    applyTheme(btn, "BackgroundColor3", "Color Hub 1"); applyTheme(btn, "TextColor3", "Color Text"); createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, btn); addBorder(btn, "Color Stroke", 1)
+
+    local baseSize, basePos = UDim2.new(0.4, -20, 0, 30), UDim2.new(0.6, 10, 0.5, -15)
+    local downSize, downPos = UDim2.new(0.4, -24, 0, 26), UDim2.new(0.6, 12, 0.5, -13)
+
+    addConnection(btn.MouseEnter:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, 0.15) end))
+    addConnection(btn.MouseLeave:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.15); tweenProperty(btn, {Size = baseSize, Position = basePos}, 0.1) end))
+    addConnection(btn.MouseButton1Down:Connect(function() tweenProperty(btn, {Size = downSize, Position = downPos}, 0.1) end))
+    addConnection(btn.MouseButton1Up:Connect(function()
+        tweenProperty(btn, {Size = baseSize, Position = basePos}, 0.1)
+        task.spawn(function()
+            local ok, err = pcall(callback)
+            if not ok then warn("[JustHub] Button callback error [" .. title .. "]: " .. tostring(err)) end
+        end)
+    end))
+
+    return frame
 end
 
 function SectionMethods:addConfigManager()
-	local frame = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 78),
-		BackgroundTransparency = 0
-	}, self.Content)
-	applyBaseCard(frame)
+    local frame = createInstance("Frame", {Name = "ConfigManager", Size = UDim2.new(1, 0, 0, 105), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
 
-	local label = createInstance("TextLabel", {
-		Size = UDim2.new(1, -20, 0, 18),
-		Position = UDim2.fromOffset(12, 4),
-		BackgroundTransparency = 1,
-		Text = "Config Manager",
-		Font = Enum.Font.GothamMedium,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, frame)
-	trackTheme(label, "TextColor3", "Color Text")
+    local inputBox = createInstance("TextBox", {Text = "DefaultConfig", Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 10), Font = Enum.Font.Gotham, TextSize = 13, ClearTextOnFocus = false, PlaceholderText = "Config Name..."}, frame)
+    applyTheme(inputBox, "BackgroundColor3", "Color Hub 1"); applyTheme(inputBox, "TextColor3", "Color Text"); createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, inputBox); addBorder(inputBox, "Color Stroke", 1)
 
-	local nameBox = createInstance("TextBox", {
-		Size = UDim2.new(1, -24, 0, 22),
-		Position = UDim2.fromOffset(12, 26),
-		Text = "JustHub_Config",
-		Font = Enum.Font.Gotham,
-		TextSize = 11,
-		ClearTextOnFocus = false,
-		BorderSizePixel = 0
-	}, frame)
-	trackTheme(nameBox, "BackgroundColor3", "Color Hub 1")
-	trackTheme(nameBox, "TextColor3", "Color Text")
-	trackTheme(nameBox, "PlaceholderColor3", "Color Dark Text")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, nameBox)
-	local ns = createInstance("UIStroke", {Thickness = 1}, nameBox)
-	trackTheme(ns, "Color", "Color Stroke")
+    local saveBtn = createInstance("TextButton", {Text = "Save Profile", Size = UDim2.new(0.48, 0, 0, 30), Position = UDim2.new(0, 10, 0, 48), TextColor3 = Color3.fromRGB(20, 20, 20), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false}, frame)
+    applyTheme(saveBtn, "BackgroundColor3", "Color Theme"); createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, saveBtn); registerChroma(saveBtn, "BackgroundColor3", "Color Theme")
 
-	local saveBtn = createInstance("TextButton", {
-		Size = UDim2.fromOffset(70, 20),
-		Position = UDim2.fromOffset(12, 54),
-		Text = "Save",
-		Font = Enum.Font.GothamSemibold,
-		TextSize = 11,
-		AutoButtonColor = false
-	}, frame)
-	trackTheme(saveBtn, "BackgroundColor3", "Color Theme")
-	trackTheme(saveBtn, "TextColor3", "Color Hub 1")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, saveBtn)
+    local loadBtn = createInstance("TextButton", {Text = "Load Profile", Size = UDim2.new(0.48, 0, 0, 30), Position = UDim2.new(0.52, -10, 0, 48), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false}, frame)
+    applyTheme(loadBtn, "BackgroundColor3", "Color Hub 1"); applyTheme(loadBtn, "TextColor3", "Color Text"); createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, loadBtn); addBorder(loadBtn, "Color Stroke", 1)
 
-	local loadBtn = createInstance("TextButton", {
-		Size = UDim2.fromOffset(70, 20),
-		Position = UDim2.fromOffset(90, 54),
-		Text = "Load",
-		Font = Enum.Font.GothamSemibold,
-		TextSize = 11,
-		AutoButtonColor = false
-	}, frame)
-	trackTheme(loadBtn, "BackgroundColor3", "Color Hub 1")
-	trackTheme(loadBtn, "TextColor3", "Color Text")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, loadBtn)
-	local ls = createInstance("UIStroke", {Thickness = 1}, loadBtn)
-	trackTheme(ls, "Color", "Color Stroke")
+    local deleteBtn = createInstance("TextButton", {Text = "Delete Profile", Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 82), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false}, frame)
+    applyTheme(deleteBtn, "BackgroundColor3", "Color Stroke"); applyTheme(deleteBtn, "TextColor3", "Color Dark Text"); createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, deleteBtn)
 
-	local clearBtn = createInstance("TextButton", {
-		Size = UDim2.fromOffset(70, 20),
-		Position = UDim2.fromOffset(168, 54),
-		Text = "Reset",
-		Font = Enum.Font.GothamSemibold,
-		TextSize = 11,
-		AutoButtonColor = false
-	}, frame)
-	trackTheme(clearBtn, "BackgroundColor3", "Color Hub 1")
-	trackTheme(clearBtn, "TextColor3", "Color Text")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, clearBtn)
-	local cs = createInstance("UIStroke", {Thickness = 1}, clearBtn)
-	trackTheme(cs, "Color", "Color Stroke")
+    addConnection(saveBtn.MouseEnter:Connect(function() tweenProperty(saveBtn, {BackgroundTransparency = 0.2}, 0.15) end))
+    addConnection(saveBtn.MouseLeave:Connect(function() tweenProperty(saveBtn, {BackgroundTransparency = 0}, 0.15) end))
+    addConnection(loadBtn.MouseEnter:Connect(function() tweenProperty(loadBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, 0.15) end))
+    addConnection(loadBtn.MouseLeave:Connect(function() tweenProperty(loadBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.15) end))
+    addConnection(deleteBtn.MouseEnter:Connect(function() tweenProperty(deleteBtn, {BackgroundColor3 = Color3.fromRGB(200, 60, 60), TextColor3 = Color3.fromRGB(255, 255, 255)}, 0.15) end))
+    addConnection(deleteBtn.MouseLeave:Connect(function() tweenProperty(deleteBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"], TextColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Dark Text"]}, 0.15) end))
 
-	local function configName()
-		local raw = nameBox.Text:gsub("%s+", "_")
-		if raw == "" then
-			return "JustHub_Config"
-		end
-		return raw
-	end
+    addConnection(saveBtn.MouseButton1Click:Connect(function()
+        if inputBox.Text == "" then return end
+        local ok, err = JustHub:SaveConfig(inputBox.Text .. ".json")
+        if not ok then JustHub:Notify({Title = "Save Config", Message = "Failed: " .. tostring(err), Duration = 4}) end
+    end))
+    addConnection(loadBtn.MouseButton1Click:Connect(function()
+        if inputBox.Text == "" then return end
+        local ok, err = JustHub:LoadConfig(inputBox.Text .. ".json")
+        if not ok then JustHub:Notify({Title = "Load Config", Message = "Failed: " .. tostring(err), Duration = 4}) end
+    end))
+    addConnection(deleteBtn.MouseButton1Click:Connect(function()
+        if inputBox.Text == "" then return end
+        local fn = inputBox.Text .. ".json"
+        if not isSafeConfigFileName(fn) then JustHub:Notify({Title = "Config Manager", Message = "Invalid filename", Duration = 4}); return end
+        if not delfile then JustHub:Notify({Title = "Config Manager", Message = "delfile not supported by executor", Duration = 4}); return end
+        local ok, err = pcall(delfile, fn)
+        if ok then JustHub:Notify({Title = "Config Manager", Message = "Deleted: " .. fn, Duration = 3})
+        else JustHub:Notify({Title = "Config Manager", Message = "Failed: " .. tostring(err), Duration = 4}) end
+    end))
 
-	local saveConn = saveBtn.MouseButton1Click:Connect(function()
-		Hub:SaveConfig(configName() .. ".json")
-	end)
-	local loadConn = loadBtn.MouseButton1Click:Connect(function()
-		Hub:LoadConfig(configName() .. ".json")
-	end)
-	local clearConn = clearBtn.MouseButton1Click:Connect(function()
-		Hub.ConfigData = {}
-		Hub:Notify({
-			Title = "Config",
-			Message = "Memory cleared",
-			Duration = 2
-		})
-	end)
-	table.insert(Hub.Connections, saveConn)
-	table.insert(Hub.Connections, loadConn)
-	table.insert(Hub.Connections, clearConn)
-
-	return frame
+    return frame
 end
 
-function TabMethods:addSection(sectionName)
-	local section = {
-		Frame = createInstance("Frame", {
-			Size = UDim2.new(1, 0, 0, 0),
-			AutomaticSize = Enum.AutomaticSize.Y,
-			BackgroundTransparency = 0
-		}, self.Page),
-		Title = nil,
-		Content = nil
-	}
-	applyBaseCard(section.Frame)
+function JustHub:CreateWindow(options)
+    if not isAlive() then return nil end
+    options = options or {}
+    local winName   = options.Name or "JustHub Window"
+    local themeName = options.Theme or "Darker"
+    local subTitle  = options.SubTitle or "SubTitle"
+    local player    = Players.LocalPlayer
 
-	local title = createInstance("TextLabel", {
-		Size = UDim2.new(1, -16, 0, 22),
-		Position = UDim2.fromOffset(10, 8),
-		BackgroundTransparency = 1,
-		Text = sectionName or "Section",
-		Font = Enum.Font.GothamSemibold,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, section.Frame)
-	trackTheme(title, "TextColor3", "Color Text")
-	section.Title = title
+    local screenGui = trackScreenGui(createInstance("ScreenGui", {Name = "JustHub", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Global}, targetParent))
+    self.ScreenGui = screenGui; JustHub.Save.Theme = themeName
 
-	local content = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 0),
-		Position = UDim2.fromOffset(0, 32),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundTransparency = 1
-	}, section.Frame)
-	section.Content = content
+    local mainFrame = createInstance("Frame", {
+        Name = "MainFrame", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, JustHub.Save.UISize[1], 0, JustHub.Save.UISize[2]),
+        BackgroundTransparency = JustHub.Save.Transparency, BorderSizePixel = 0, ClipsDescendants = true, Active = true, ZIndex = 1
+    }, screenGui)
+    applyTheme(mainFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, mainFrame)
+    local mainBorder = addBorder(mainFrame, "Color Stroke", 1); registerChroma(mainBorder, "Color", "Color Stroke")
 
-	createInstance("UIListLayout", {
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, 8)
-	}, content)
-	createInstance("UIPadding", {
-		PaddingTop = UDim.new(0, 2),
-		PaddingLeft = UDim.new(0, 10),
-		PaddingRight = UDim.new(0, 10),
-		PaddingBottom = UDim.new(0, 10)
-	}, content)
+    local topBar = createInstance("Frame", {Name = "TopBar", Size = UDim2.new(1, 0, 0, 45), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
 
-	setmetatable(section, {__index = SectionMethods})
-	table.insert(self.Sections, section)
-	return section
+    local titleLabel = createInstance("TextLabel", {Name = "TitleLabel", Text = winName, Size = UDim2.new(0.5, 0, 1, 0), Position = UDim2.new(0, 20, 0, -5), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, topBar)
+    applyTheme(titleLabel, "TextColor3", "Color Text")
+
+    local subtitleLabel = createInstance("TextLabel", {Name = "SubtitleLabel", Text = subTitle, Size = UDim2.new(0.5, 0, 1, 0), Position = UDim2.new(0, 20, 0, 10), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, topBar)
+    applyTheme(subtitleLabel, "TextColor3", "Color Dark Text")
+
+    local watermark = createInstance("TextLabel", {Name = "Watermark", Text = "JustHub | " .. player.DisplayName, Size = UDim2.new(0, 200, 0, 18), Position = UDim2.new(0, 10, 0, 2), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 10, TextTransparency = 0.5, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, mainFrame)
+    applyTheme(watermark, "TextColor3", "Color Dark Text")
+
+    local btnContainer = createInstance("Frame", {Name = "ButtonContainer", Size = UDim2.new(0, 100, 1, 0), Position = UDim2.new(1, -15, 0, 0), AnchorPoint = Vector2.new(1, 0), BackgroundTransparency = 1, ZIndex = 2}, topBar)
+    createInstance("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Right, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder}, btnContainer)
+
+    local function createWinBtn(name, themeKey, order, text)
+        local btn = createInstance("TextButton", {Name = name, Text = text or "", Size = UDim2.new(0, 14, 0, 14), LayoutOrder = order, AutoButtonColor = false, BorderSizePixel = 0, TextSize = 10, ZIndex = 2}, btnContainer)
+        createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, btn); applyTheme(btn, "BackgroundColor3", themeKey)
+        addConnection(btn.MouseEnter:Connect(function() tweenProperty(btn, {BackgroundTransparency = 0.2}, 0.2) end))
+        addConnection(btn.MouseLeave:Connect(function() tweenProperty(btn, {BackgroundTransparency = 0}, 0.2) end))
+        return btn
+    end
+
+    local hideBtn = createWinBtn("HideBtn", "Color Dark Text", 1)
+    local maxBtn  = createWinBtn("MaxBtn", "Color Theme", 2)
+    local closeBtn = createWinBtn("CloseBtn", "Color Stroke", 3)
+    local lockBtn = createWinBtn("LockBtn", "Color Dark Text", 4, "🔒")
+    applyTheme(lockBtn, "TextColor3", "Color Text")
+
+    local headerSep = createInstance("Frame", {Size = UDim2.new(1, -40, 0, 1), Position = UDim2.new(0, 20, 0, 44), BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    applyTheme(headerSep, "BackgroundColor3", "Color Stroke")
+
+    local profileFrame = createInstance("Frame", {Name = "ProfileFrame", Size = UDim2.new(0, JustHub.Save.TabSize, 0, 50), Position = UDim2.new(0, 20, 0, 55), BackgroundTransparency = 1, ZIndex = 2}, mainFrame)
+    local avatarImg = createInstance("ImageLabel", {Size = UDim2.new(0, 36, 0, 36), Position = UDim2.new(0, 0, 0.5, -18), BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 2}, profileFrame)
+    applyTheme(avatarImg, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, avatarImg)
+    pcall(function() avatarImg.Image = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end)
+
+    local profileName = createInstance("TextLabel", {Text = player.DisplayName, Size = UDim2.new(1, -46, 1, 0), Position = UDim2.new(0, 46, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 2}, profileFrame)
+    applyTheme(profileName, "TextColor3", "Color Text")
+
+    local sidebar = createInstance("Frame", {Name = "Sidebar", Size = UDim2.new(0, JustHub.Save.TabSize, 1, -135), Position = UDim2.new(0, 20, 0, 115), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    createInstance("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6)}, sidebar)
+
+    local contentContainer = createInstance("Frame", {Name = "ContentContainer", Size = UDim2.new(1, -(JustHub.Save.TabSize + 50), 1, -75), Position = UDim2.new(0, JustHub.Save.TabSize + 30, 0, 55), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+
+    local searchFrame = createInstance("Frame", {Name = "SearchFrame", Size = UDim2.new(1, 0, 0, 28), Position = UDim2.new(0, 0, 0, -30), BackgroundTransparency = 0.15, BorderSizePixel = 0, ZIndex = 2}, contentContainer)
+    applyTheme(searchFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, searchFrame); addBorder(searchFrame, "Color Stroke", 1)
+
+    local searchBox = createInstance("TextBox", {Size = UDim2.new(1, -24, 1, 0), Position = UDim2.new(0, 12, 0, 0), Font = Enum.Font.Gotham, TextSize = 12, PlaceholderText = "Search controls...", ClearTextOnFocus = false, BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3}, searchFrame)
+    applyTheme(searchBox, "TextColor3", "Color Text"); applyTheme(searchBox, "PlaceholderColor3", "Color Dark Text")
+
+    local tabsContainer = createInstance("Frame", {Name = "TabsContainer", Size = UDim2.new(1, 0, 1, -34), Position = UDim2.new(0, 0, 0, 30), BackgroundTransparency = 1, ZIndex = 2}, contentContainer)
+
+    local footer = createInstance("Frame", {Name = "Footer", Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -20), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    local fpsLabel = createInstance("TextLabel", {Name = "FPSLabel", Text = "FPS: --", Size = UDim2.new(0, 100, 1, 0), Position = UDim2.new(1, -20, 0, 0), AnchorPoint = Vector2.new(1, 0), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 2}, footer)
+    applyTheme(fpsLabel, "TextColor3", "Color Dark Text")
+
+    local lastTime, frameCount = os.clock(), 0
+    addConnection(RunService.RenderStepped:Connect(function()
+        if not isAlive() then return end
+        frameCount = frameCount + 1; local currentTime = os.clock()
+        if currentTime - lastTime >= 1 then
+            if fpsLabel and fpsLabel.Parent then fpsLabel.Text = "FPS: " .. frameCount end
+            frameCount = 0; lastTime = currentTime
+        end
+    end))
+
+    tweenProperty(mainFrame, {Position = UDim2.new(0.5, 0, 0.5, 0)}, 0.6, Enum.EasingStyle.Exponential)
+
+    local windowState = "normal"
+    local savedNormalSize = UDim2.new(0, JustHub.Save.UISize[1], 0, JustHub.Save.UISize[2])
+    local savedNormalPos  = UDim2.new(0.5, 0, 0.5, 0)
+    local isLocked = JustHub.Save.Locked
+
+    local function setPanelsVisible(visible)
+        sidebar.Visible = visible; contentContainer.Visible = visible; footer.Visible = visible
+        headerSep.Visible = visible; profileFrame.Visible = visible; watermark.Visible = visible
+    end
+
+    local function setWindowState(newState)
+        if newState == windowState then return end
+        local prevState = windowState
+        if prevState == "normal" and newState ~= "normal" then savedNormalSize = mainFrame.Size; savedNormalPos = mainFrame.Position end
+        windowState = newState
+
+        if newState == "minimized" then
+            local minimizedWidth = savedNormalSize.X.Offset
+            if minimizedWidth <= 0 then
+                minimizedWidth = math.max(mainFrame.AbsoluteSize.X, JustHub.Save.UISize[1])
+            end
+            tweenProperty(mainFrame, {Size = UDim2.new(0, minimizedWidth, 0, 45)}, 0.4, Enum.EasingStyle.Exponential)
+            task.delay(0.15, function() if isAlive() and windowState == "minimized" then setPanelsVisible(false) end end)
+        elseif newState == "maximized" then
+            setPanelsVisible(true)
+            tweenProperty(mainFrame, {Size = UDim2.new(1, -40, 1, -40), Position = UDim2.new(0.5, 0, 0.5, 0)}, 0.4, Enum.EasingStyle.Exponential)
+        elseif newState == "normal" then
+            setPanelsVisible(true)
+            tweenProperty(mainFrame, {Size = savedNormalSize, Position = savedNormalPos}, 0.4, Enum.EasingStyle.Exponential)
+        end
+    end
+
+    addConnection(hideBtn.MouseButton1Click:Connect(function() setWindowState(windowState == "minimized" and "normal" or "minimized") end))
+    addConnection(maxBtn.MouseButton1Click:Connect(function() setWindowState(windowState == "maximized" and "normal" or "maximized") end))
+
+    addConnection(closeBtn.MouseButton1Click:Connect(function()
+        if windowState == "hidden" then return end
+        local prevState = windowState; windowState = "hidden"
+        local t = tweenProperty(mainFrame, {Position = UDim2.new(0.5, 0, -0.5, 0), BackgroundTransparency = 1}, 0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
+        connectOnce(t.Completed, function()
+            if not isAlive() then return end
+            mainFrame.Visible = false
+            local showUI = trackScreenGui(createInstance("ScreenGui", {Name = "JustHubShowUI", ResetOnSpawn = false}, targetParent))
+            local showBtn = createInstance("TextButton", {Name = "ShowUIButton", Size = UDim2.new(0, 44, 0, 44), Position = UDim2.new(0.5, -22, 0, 10), Text = "UI", Font = Enum.Font.GothamBold, TextSize = 13, AutoButtonColor = false}, showUI)
+            applyTheme(showBtn, "BackgroundColor3", "Color Hub 2"); applyTheme(showBtn, "TextColor3", "Color Text"); createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, showBtn); addBorder(showBtn, "Color Stroke", 1)
+
+            addConnection(showBtn.MouseButton1Click:Connect(function()
+                if not isAlive() then return end
+                mainFrame.Visible = true; windowState = prevState or "normal"
+                tweenProperty(mainFrame, {Position = savedNormalPos, BackgroundTransparency = JustHub.Save.Transparency}, 0.5, Enum.EasingStyle.Exponential)
+                pcall(function() showUI:Destroy() end)
+                for i = #JustHub.ScreenGuis, 1, -1 do if JustHub.ScreenGuis[i] == showUI then table.remove(JustHub.ScreenGuis, i) end end
+            end))
+        end)
+    end))
+
+    addConnection(lockBtn.MouseButton1Click:Connect(function()
+        isLocked = not isLocked; JustHub.Save.Locked = isLocked
+        lockBtn.Text = isLocked and "🔐" or "🔒"
+        JustHub:UpdateThemeObject(lockBtn, "BackgroundColor3", isLocked and "Color Theme" or "Color Dark Text")
+        lockBtn.BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)[isLocked and "Color Theme" or "Color Dark Text"]
+    end))
+
+    local resizeGrip = createInstance("TextButton", {Name = "ResizeGrip", Size = UDim2.new(0, 24, 0, 24), Position = UDim2.new(1, -24, 1, -24), BackgroundTransparency = 1, Text = "⌟", Font = Enum.Font.Gotham, TextSize = 16, ZIndex = 50}, mainFrame)
+    applyTheme(resizeGrip, "TextColor3", "Color Dark Text")
+
+    local isDragging, isResizing = false, false
+    local activeWindowInput = nil
+    local dragStart, dragStartPos, dragStartSize
+
+    addConnection(topBar.InputBegan:Connect(function(input)
+        if isLocked or windowState == "maximized" then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDragging = true; activeWindowInput = input; dragStart = input.Position; dragStartPos = mainFrame.Position
+        end
+    end))
+
+    addConnection(resizeGrip.InputBegan:Connect(function(input)
+        if isLocked or windowState ~= "normal" then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isResizing = true; activeWindowInput = input; dragStart = input.Position; dragStartSize = mainFrame.Size
+        end
+    end))
+
+    addConnection(UserInputService.InputChanged:Connect(function(input)
+        if not isAlive() or not activeWindowInput then return end
+        local isMatchingMouse = activeWindowInput.UserInputType == Enum.UserInputType.MouseButton1
+            and input.UserInputType == Enum.UserInputType.MouseMovement
+        local isMatchingTouch = activeWindowInput.UserInputType == Enum.UserInputType.Touch
+            and input == activeWindowInput
+        if not (isMatchingMouse or isMatchingTouch) then return end
+        if isDragging then
+            local delta = input.Position - dragStart
+            local newPos = UDim2.new(dragStartPos.X.Scale, dragStartPos.X.Offset + delta.X, dragStartPos.Y.Scale, dragStartPos.Y.Offset + delta.Y)
+            mainFrame.Position = newPos
+            if windowState == "normal" then savedNormalPos = newPos end
+        elseif isResizing then
+            local delta = input.Position - dragStart
+            local minW, minH = JustHub.Save.UISize[1] * 0.7, JustHub.Save.UISize[2] * 0.7
+            local newSize = UDim2.new(0, math.max(minW, dragStartSize.X.Offset + delta.X), 0, math.max(minH, dragStartSize.Y.Offset + delta.Y))
+            mainFrame.Size = newSize; savedNormalSize = newSize
+        end
+    end))
+
+    addConnection(UserInputService.InputEnded:Connect(function(input)
+        local isMatchingMouse = activeWindowInput
+            and activeWindowInput.UserInputType == Enum.UserInputType.MouseButton1
+            and input.UserInputType == Enum.UserInputType.MouseButton1
+        if activeWindowInput and (input == activeWindowInput or isMatchingMouse) then
+            isDragging, isResizing = false, false
+            activeWindowInput = nil
+        end
+    end))
+    addConnection(UserInputService.WindowFocusReleased:Connect(function()
+        isDragging, isResizing = false, false
+        activeWindowInput = nil
+    end))
+
+    local notiContainer = createInstance("Frame", {Name = "NotificationContainer", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -20, 1, -20), Size = UDim2.new(0, 280, 1, -40), BackgroundTransparency = 1, ZIndex = 100}, screenGui)
+    createInstance("UIListLayout", {Padding = UDim.new(0, 12), HorizontalAlignment = Enum.HorizontalAlignment.Right, VerticalAlignment = Enum.VerticalAlignment.Bottom, SortOrder = Enum.SortOrder.LayoutOrder}, notiContainer)
+    self.NotificationContainer = notiContainer
+
+    local windowObj = {ScreenGui = screenGui, MainFrame = mainFrame, TopBar = topBar, Sidebar = sidebar, ContentContainer = tabsContainer, Tabs = {}}
+    self.Window = windowObj
+
+    addConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        local term = searchBox.Text:lower()
+        for _, tab in ipairs(windowObj.Tabs) do
+            for _, sec in ipairs(tab.Sections) do
+                local anyVisible = false
+                for _, child in ipairs(sec.Content:GetChildren()) do
+                    if child:IsA("Frame") then
+                        local show = (term == "" or string.find(child.Name:lower(), term, 1, true) ~= nil)
+                        child.Visible = show
+                        if show then anyVisible = true end
+                    end
+                end
+                sec.Frame.Visible = (anyVisible or term == "")
+            end
+        end
+    end))
+
+    function windowObj:addTab(tabName, iconName)
+        tabName = tabName or "Tab"
+        local btn = createInstance("TextButton", {Name = tabName .. "Button", Text = "", Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 1, AutoButtonColor = false, ZIndex = 2}, sidebar)
+        applyTheme(btn, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, btn)
+        createInstance("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 8)}, btn); createInstance("UIPadding", {PaddingLeft = UDim.new(0, 10)}, btn)
+
+        local tabIcon
+        if iconName and JustHub.Icons[iconName] then
+            tabIcon = createInstance("ImageLabel", {Size = UDim2.new(0, 18, 0, 18), BackgroundTransparency = 1, Image = JustHub.Icons[iconName], ZIndex = 2}, btn)
+            applyTheme(tabIcon, "ImageColor3", "Color Dark Text")
+        end
+
+        local tabText = createInstance("TextLabel", {Text = tabName, Size = UDim2.new(1, -26, 1, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, btn)
+        applyTheme(tabText, "TextColor3", "Color Dark Text")
+
+        local tabContent = createInstance("ScrollingFrame", {Name = tabName .. "Content", Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ScrollBarThickness = 2, BorderSizePixel = 0, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0, 0, 0, 0), Visible = false, ZIndex = 2}, tabsContainer)
+        applyTheme(tabContent, "ScrollBarImageColor3", "Color Stroke"); createInstance("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 10), HorizontalAlignment = Enum.HorizontalAlignment.Center}, tabContent)
+
+        local tabObj = {Name = tabName, Button = btn, Content = tabContent, Sections = {}}
+        table.insert(windowObj.Tabs, tabObj)
+
+        local function updateTabs()
+            for _, t in ipairs(windowObj.Tabs) do
+                local active = (t == tabObj); t.Content.Visible = active
+                tweenProperty(t.Button, {BackgroundTransparency = active and 0 or 1}, 0.3)
+                local textObj = t.Button:FindFirstChildOfClass("TextLabel"); local imgObj = t.Button:FindFirstChildOfClass("ImageLabel")
+                if textObj then JustHub:UpdateThemeObject(textObj, "TextColor3", active and "Color Text" or "Color Dark Text"); tweenProperty(textObj, {TextColor3 = getCurrentTheme(JustHub.Save.Theme)[active and "Color Text" or "Color Dark Text"]}, 0.3) end
+                if imgObj then JustHub:UpdateThemeObject(imgObj, "ImageColor3", active and "Color Text" or "Color Dark Text"); tweenProperty(imgObj, {ImageColor3 = getCurrentTheme(JustHub.Save.Theme)[active and "Color Text" or "Color Dark Text"]}, 0.3) end
+            end
+        end
+
+        addConnection(btn.MouseButton1Click:Connect(updateTabs))
+        if #windowObj.Tabs == 1 then updateTabs() end
+
+        function tabObj:addSection(sectionName)
+            sectionName = sectionName or "Section"
+            local secFrame = createInstance("Frame", {Name = sectionName, Size = UDim2.new(1, -4, 0, 0), BackgroundTransparency = 0.4, AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 2}, tabContent)
+            applyTheme(secFrame, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, secFrame); addBorder(secFrame, "Color Stroke", 1)
+
+            local secTitle = createInstance("TextLabel", {Name = "SectionTitle", Text = "  " .. sectionName, Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, secFrame)
+            applyTheme(secTitle, "TextColor3", "Color Text")
+
+            local secContent = createInstance("Frame", {Name = "SectionContent", Size = UDim2.new(1, 0, 0, 0), Position = UDim2.new(0, 0, 0, 34), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 2}, secFrame)
+            createInstance("UIListLayout", {FillDirection = Enum.FillDirection.Vertical, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center}, secContent)
+            createInstance("UIPadding", {PaddingBottom = UDim.new(0, 10), PaddingTop = UDim.new(0, 2), PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10)}, secContent)
+
+            local secObj = {Frame = secFrame, Title = secTitle, Content = secContent, _tabName = tabName, _sectionName = sectionName}
+            table.insert(tabObj.Sections, secObj)
+            setmetatable(secObj, {__index = SectionMethods})
+            return secObj
+        end
+        return tabObj
+    end
+    return windowObj
 end
 
-function TabMethods:Select()
-	if self.Window and self.Window.SetActiveTab then
-		self.Window:SetActiveTab(self)
-	end
+function JustHub:ShowLoadingScreen(duration, callback)
+    duration = duration or 5
+    callback = callback or function() end
+    if not isAlive() then return end
+
+    local loadGui = trackScreenGui(createInstance("ScreenGui", {Name = "JustHubLoadingScreen", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Global}, targetParent))
+    local bgOverlay = createInstance("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 0, BorderSizePixel = 0, ZIndex = 100}, loadGui)
+    applyTheme(bgOverlay, "BackgroundColor3", "Color Hub 2")
+
+    local titleLabel = createInstance("TextLabel", {Text = "JustHub Library", Font = Enum.Font.GothamBold, TextSize = 24, BackgroundTransparency = 1, Size = UDim2.new(0, 200, 0, 50), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, -50), ZIndex = 101}, loadGui)
+    applyTheme(titleLabel, "TextColor3", "Color Text")
+
+    local barContainer = createInstance("Frame", {Size = UDim2.new(0, 300, 0, 10), Position = UDim2.new(0.5, 0, 0.5, 20), AnchorPoint = Vector2.new(0.5, 0.5), BorderSizePixel = 0, ZIndex = 101}, loadGui)
+    applyTheme(barContainer, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, barContainer); addBorder(barContainer, "Color Stroke", 1)
+
+    local barFill = createInstance("Frame", {Size = UDim2.new(0, 0, 1, 0), BorderSizePixel = 0, ZIndex = 102}, barContainer)
+    applyTheme(barFill, "BackgroundColor3", "Color Theme"); createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, barFill)
+
+    local tween = tweenProperty(barFill, {Size = UDim2.new(1, 0, 1, 0)}, duration)
+    local titleTween = TweenService:Create(titleLabel, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {TextTransparency = 0.5})
+    activeTweens[titleLabel] = titleTween
+    titleTween:Play()
+
+    if tween then
+        connectOnce(tween.Completed, function()
+            if not isAlive() then return end
+            titleTween:Cancel()
+            if activeTweens[titleLabel] == titleTween then activeTweens[titleLabel] = nil end
+            task.wait(0.3)
+            local fade = tweenProperty(bgOverlay, {BackgroundTransparency = 1}, 0.5)
+            tweenProperty(titleLabel, {TextTransparency = 1}, 0.5)
+            tweenProperty(barContainer, {BackgroundTransparency = 1}, 0.5)
+            tweenProperty(barFill, {BackgroundTransparency = 1}, 0.5)
+            if fade then
+                connectOnce(fade.Completed, function()
+                    if loadGui then pcall(function() loadGui:Destroy() end) end
+                    for i = #JustHub.ScreenGuis, 1, -1 do if JustHub.ScreenGuis[i] == loadGui then table.remove(JustHub.ScreenGuis, i) end end
+                    if isAlive() then local ok, err = pcall(callback); if not ok then warn("[JustHub] Loading screen error: " .. tostring(err)) end end
+                end)
+            end
+        end)
+    end
 end
 
-function Hub:CreateWindow(options)
-	options = options or {}
-
-	local windowObj = {
-		Tabs = {},
-		Sections = {},
-		ActiveTab = nil,
-		IsOpen = true,
-		IsMinimized = false,
-		WindowState = "normal",
-		DragState = nil
-	}
-
-	local size = options.Size
-	if type(size) == "table" then
-		self.Save.UISize = {size[1] or self.Save.UISize[1], size[2] or self.Save.UISize[2]}
-	end
-	local width = self.Save.UISize[1]
-	local height = self.Save.UISize[2]
-	local finalSize = normalizedSize(width, height)
-
-	local screenGui = createInstance("ScreenGui", {
-		Name = options.Name or "JustHub",
-		ResetOnSpawn = false,
-		IgnoreGuiInset = true,
-		ZIndexBehavior = Enum.ZIndexBehavior.Global
-	}, playerGui or player:WaitForChild("PlayerGui"))
-
-	local root = createInstance("Frame", {
-		Name = "Root",
-		Size = finalSize,
-		Position = UDim2.new(0.5, 0, 0.5, 0),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundTransparency = 1,
-		Visible = true
-	}, screenGui)
-
-	local shadow = createInstance("Frame", {
-		Size = UDim2.new(1, 8, 1, 8),
-		Position = UDim2.fromOffset(-4, -4),
-		BackgroundTransparency = 1
-	}, root)
-
-	local shadowStroke = createInstance("UIStroke", {
-		Thickness = 8,
-		Transparency = 0.78,
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	}, shadow)
-	trackTheme(shadowStroke, "Color", "Color Hub 1")
-
-	local main = createInstance("Frame", {
-		Name = "Main",
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 0,
-		ClipsDescendants = true
-	}, root)
-	applyBaseCard(main)
-
-	local header = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 0, 34),
-		BackgroundTransparency = 0,
-		BorderSizePixel = 0
-	}, main)
-	trackTheme(header, "BackgroundColor3", "Color Hub 1")
-	local headerStroke = createInstance("UIStroke", {Thickness = 1}, header)
-	trackTheme(headerStroke, "Color", "Color Stroke")
-
-	local titleText = createInstance("TextLabel", {
-		Size = UDim2.new(0.58, 0, 1, 0),
-		Position = UDim2.fromOffset(12, 0),
-		BackgroundTransparency = 1,
-		Text = options.Title or "JustHub",
-		Font = Enum.Font.GothamBold,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}, header)
-	trackTheme(titleText, "TextColor3", "Color Text")
-
-	local subtitle = createInstance("TextLabel", {
-		Size = UDim2.new(0.32, 0, 1, 0),
-		Position = UDim2.new(0.58, 0, 0, 0),
-		BackgroundTransparency = 1,
-		Text = options.Subtitle or "Compact UI",
-		Font = Enum.Font.Gotham,
-		TextSize = 11,
-		TextXAlignment = Enum.TextXAlignment.Right
-	}, header)
-	trackTheme(subtitle, "TextColor3", "Color Dark Text")
-
-	local btnClose = createInstance("TextButton", {
-		Size = UDim2.fromOffset(24, 20),
-		Position = UDim2.new(1, -30, 0.5, -10),
-		Text = "×",
-		Font = Enum.Font.GothamBold,
-		TextSize = 16,
-		AutoButtonColor = false
-	}, header)
-	trackTheme(btnClose, "BackgroundColor3", "Color Hub 2")
-	trackTheme(btnClose, "TextColor3", "Color Text")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, btnClose)
-
-	local btnMin = createInstance("TextButton", {
-		Size = UDim2.fromOffset(24, 20),
-		Position = UDim2.new(1, -58, 0.5, -10),
-		Text = "–",
-		Font = Enum.Font.GothamBold,
-		TextSize = 18,
-		AutoButtonColor = false
-	}, header)
-	trackTheme(btnMin, "BackgroundColor3", "Color Hub 2")
-	trackTheme(btnMin, "TextColor3", "Color Text")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, btnMin)
-
-	local btnOpen = createInstance("TextButton", {
-		Size = UDim2.fromOffset(24, 20),
-		Position = UDim2.new(1, -86, 0.5, -10),
-		Text = "◫",
-		Font = Enum.Font.GothamBold,
-		TextSize = 12,
-		AutoButtonColor = false
-	}, header)
-	trackTheme(btnOpen, "BackgroundColor3", "Color Theme")
-	trackTheme(btnOpen, "TextColor3", "Color Hub 1")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, btnOpen)
-
-	local side = createInstance("Frame", {
-		Size = UDim2.new(0, math.max(102, self.Save.TabSize), 1, -34),
-		Position = UDim2.new(0, 0, 0, 34),
-		BackgroundTransparency = 0,
-		BorderSizePixel = 0
-	}, main)
-	trackTheme(side, "BackgroundColor3", "Color Hub 1")
-	local sideStroke = createInstance("UIStroke", {Thickness = 1}, side)
-	trackTheme(sideStroke, "Color", "Color Stroke")
-
-	local tabScroll = createInstance("ScrollingFrame", {
-		Size = UDim2.new(1, 0, 1, -12),
-		Position = UDim2.fromOffset(0, 6),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ScrollBarThickness = 2,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.fromOffset(0, 0)
-	}, side)
-	trackTheme(tabScroll, "ScrollBarImageColor3", "Color Stroke")
-	createInstance("UIListLayout", {
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, 6)
-	}, tabScroll)
-	createInstance("UIPadding", {
-		PaddingTop = UDim.new(0, 6),
-		PaddingLeft = UDim.new(0, 8),
-		PaddingRight = UDim.new(0, 8)
-	}, tabScroll)
-
-	local pages = createInstance("Frame", {
-		Size = UDim2.new(1, -(math.max(102, self.Save.TabSize)), 1, -34),
-		Position = UDim2.new(0, math.max(102, self.Save.TabSize), 0, 34),
-		BackgroundTransparency = 1
-	}, main)
-
-	local pageContainer = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 1, 0),
-		BackgroundTransparency = 1
-	}, pages)
-	createInstance("UIPadding", {
-		PaddingTop = UDim.new(0, 8),
-		PaddingBottom = UDim.new(0, 8),
-		PaddingLeft = UDim.new(0, 8),
-		PaddingRight = UDim.new(0, 8)
-	}, pageContainer)
-
-	local pageScroll = createInstance("ScrollingFrame", {
-		Size = UDim2.new(1, 0, 1, 0),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ScrollBarThickness = 3,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.fromOffset(0, 0)
-	}, pageContainer)
-	trackTheme(pageScroll, "ScrollBarImageColor3", "Color Stroke")
-	createInstance("UIListLayout", {
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, 10)
-	}, pageScroll)
-	createInstance("UIPadding", {
-		PaddingTop = UDim.new(0, 2),
-		PaddingBottom = UDim.new(0, 8),
-		PaddingLeft = UDim.new(0, 2),
-		PaddingRight = UDim.new(0, 4)
-	}, pageScroll)
-
-	local resizeGrip = createInstance("TextButton", {
-		Size = UDim2.fromOffset(16, 16),
-		Position = UDim2.new(1, -18, 1, -18),
-		Text = "⤡",
-		Font = Enum.Font.GothamBold,
-		TextSize = 10,
-		AutoButtonColor = false
-	}, main)
-	trackTheme(resizeGrip, "BackgroundColor3", "Color Theme")
-	trackTheme(resizeGrip, "TextColor3", "Color Hub 1")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 5)}, resizeGrip)
-
-	local toggleIcon = createInstance("TextButton", {
-		Size = UDim2.fromOffset(42, 42),
-		Position = UDim2.new(0, 20, 0.5, -21),
-		BackgroundTransparency = 0,
-		Text = "J",
-		Font = Enum.Font.GothamBold,
-		TextSize = 20,
-		Visible = false,
-		AutoButtonColor = false
-	}, screenGui)
-	trackTheme(toggleIcon, "BackgroundColor3", "Color Hub 2")
-	trackTheme(toggleIcon, "TextColor3", "Color Theme")
-	createInstance("UICorner", {CornerRadius = UDim.new(0, 10)}, toggleIcon)
-	local iconStroke = createInstance("UIStroke", {Thickness = 1}, toggleIcon)
-	trackTheme(iconStroke, "Color", "Color Stroke")
-	trackChroma(toggleIcon, "TextColor3")
-
-	local dragActive = false
-	local dragStart = nil
-	local startPos = nil
-
-	local iconDragActive = false
-	local iconDragStart = nil
-	local iconStartPos = nil
-
-	local function setRootSize(newWidth, newHeight)
-		local s = normalizedSize(newWidth, newHeight)
-		root.Size = s
-		self.Save.UISize = {math.floor(newWidth), math.floor(newHeight)}
-	end
-
-	local function setWindowVisible(isVisible)
-		screenGui.Enabled = isVisible
-		self.IsOpen = isVisible
-	end
-
-	local function applyMinimized(state)
-		self.IsMinimized = state and true or false
-		side.Visible = not self.IsMinimized
-		pages.Visible = not self.IsMinimized
-		resizeGrip.Visible = not self.IsMinimized
-		shadow.Visible = not self.IsMinimized
-		if self.IsMinimized then
-			tween(main, {Size = UDim2.fromOffset(root.AbsoluteSize.X, 34)}, 0.16)
-		else
-			tween(main, {Size = UDim2.fromScale(1, 1)}, 0.16)
-		end
-	end
-
-	local function selectTab(tab)
-		for _, item in ipairs(windowObj.Tabs) do
-			local active = item == tab
-			item.Page.Visible = active
-			if item.ActiveBar then
-				item.ActiveBar.Visible = active
-			end
-			local theme = currentTheme()
-			if item.Button then
-				item.Button.BackgroundColor3 = active and theme["Color Theme"] or theme["Color Hub 2"]
-			end
-			if item.Label then
-				item.Label.TextColor3 = active and theme["Color Hub 1"] or theme["Color Text"]
-			end
-		end
-		windowObj.ActiveTab = tab
-	end
-
-	function windowObj:SetActiveTab(tab)
-		selectTab(tab)
-	end
-
-	function windowObj:Open()
-		setWindowVisible(true)
-		root.Visible = true
-		toggleIcon.Visible = false
-	end
-
-	function windowObj:Close()
-		root.Visible = false
-		toggleIcon.Visible = true
-	end
-
-	function windowObj:Toggle()
-		if root.Visible then
-			self:Close()
-		else
-			self:Open()
-		end
-	end
-
-	function windowObj:Resize(widthValue, heightValue)
-		setRootSize(widthValue, heightValue)
-	end
-
-	local function createTabButton(tabObj)
-		local button = createInstance("TextButton", {
-			Size = UDim2.new(1, 0, 0, 32),
-			BackgroundTransparency = 0,
-			Text = "",
-			AutoButtonColor = false
-		}, tabScroll)
-		trackTheme(button, "BackgroundColor3", "Color Hub 2")
-		createInstance("UICorner", {CornerRadius = UDim.new(0, 9)}, button)
-		local stroke = createInstance("UIStroke", {Thickness = 1}, button)
-		trackTheme(stroke, "Color", "Color Stroke")
-
-		local label = createInstance("TextLabel", {
-			Size = UDim2.new(1, -14, 1, 0),
-			Position = UDim2.fromOffset(10, 0),
-			BackgroundTransparency = 1,
-			Text = tabObj.Name,
-			Font = Enum.Font.GothamSemibold,
-			TextSize = 12,
-			TextXAlignment = Enum.TextXAlignment.Left
-		}, button)
-		trackTheme(label, "TextColor3", "Color Text")
-
-		local activeBar = createInstance("Frame", {
-			Size = UDim2.new(0, 4, 0, 14),
-			Position = UDim2.new(1, -9, 0.5, -7),
-			BorderSizePixel = 0,
-			Visible = false
-		}, button)
-		trackTheme(activeBar, "BackgroundColor3", "Color Theme")
-		createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, activeBar)
-
-		local conn = button.MouseButton1Click:Connect(function()
-			selectTab(tabObj)
-		end)
-		table.insert(Hub.Connections, conn)
-
-		tabObj.Button = button
-		tabObj.Label = label
-		tabObj.ActiveBar = activeBar
-	end
-
-	function windowObj:addTab(tabName)
-		local tabObj = {
-			Name = tabName or "Tab",
-			Sections = {},
-			Button = nil,
-			Label = nil,
-			ActiveBar = nil,
-			Page = createInstance("Frame", {
-				Size = UDim2.new(1, 0, 0, 0),
-				AutomaticSize = Enum.AutomaticSize.Y,
-				Visible = false,
-				BackgroundTransparency = 1
-			}, pageScroll),
-			Window = windowObj
-		}
-
-		local layout = createInstance("UIListLayout", {
-			SortOrder = Enum.SortOrder.LayoutOrder,
-			Padding = UDim.new(0, 10)
-		}, tabObj.Page)
-
-		createInstance("UIPadding", {
-			PaddingTop = UDim.new(0, 2),
-			PaddingBottom = UDim.new(0, 2)
-		}, tabObj.Page)
-
-		createTabButton(tabObj)
-		setmetatable(tabObj, {__index = TabMethods})
-		table.insert(windowObj.Tabs, tabObj)
-
-		if #windowObj.Tabs == 1 then
-			tabObj.Page.Visible = true
-			windowObj.ActiveTab = tabObj
-		end
-
-		return tabObj
-	end
-
-	local function layoutRoot()
-		local tabWidth = math.max(102, self.Save.TabSize)
-		side.Size = UDim2.new(0, tabWidth, 1, -34)
-		pages.Position = UDim2.new(0, tabWidth, 0, 34)
-		pages.Size = UDim2.new(1, -tabWidth, 1, -34)
-	end
-
-	layoutRoot()
-	trackTheme(main, "BackgroundColor3", "Color Hub 2")
-
-	local dragBegin = header.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragActive = true
-			dragStart = input.Position
-			startPos = root.Position
-		end
-	end)
-	table.insert(Hub.Connections, dragBegin)
-
-	local iconDragBegin = toggleIcon.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			iconDragActive = true
-			iconDragStart = input.Position
-			iconStartPos = toggleIcon.Position
-		end
-	end)
-	table.insert(Hub.Connections, iconDragBegin)
-
-	local dragChanged = UserInputService.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-			if dragActive then
-				local delta = input.Position - dragStart
-				root.Position = UDim2.new(
-					startPos.X.Scale,
-					startPos.X.Offset + delta.X,
-					startPos.Y.Scale,
-					startPos.Y.Offset + delta.Y
-				)
-			elseif iconDragActive then
-				local delta = input.Position - iconDragStart
-				toggleIcon.Position = UDim2.new(
-					iconStartPos.X.Scale,
-					iconStartPos.X.Offset + delta.X,
-					iconStartPos.Y.Scale,
-					iconStartPos.Y.Offset + delta.Y
-				)
-			end
-		end
-	end)
-	table.insert(Hub.Connections, dragChanged)
-
-	local dragEnded = UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragActive = false
-			if iconDragActive then
-				iconDragActive = false
-				local delta = input.Position - iconDragStart
-				if delta.Magnitude < 5 then
-					windowObj:Open()
-				end
-			end
-		end
-	end)
-	table.insert(Hub.Connections, dragEnded)
-
-	local resizeActive = false
-	local resizeStart = nil
-	local startSize = nil
-
-	local function beginResize(input)
-		resizeActive = true
-		resizeStart = input.Position
-		startSize = root.AbsoluteSize
-	end
-
-	local function updateResize(input)
-		local delta = input.Position - resizeStart
-		local newW = math.max(320, startSize.X + delta.X)
-		local newH = math.max(240, startSize.Y + delta.Y)
-		self.Save.UISize = {newW, newH}
-		root.Size = UDim2.fromOffset(newW, newH)
-	end
-
-	local resizeBegin = resizeGrip.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			beginResize(input)
-		end
-	end)
-	table.insert(Hub.Connections, resizeBegin)
-
-	local resizeChanged = UserInputService.InputChanged:Connect(function(input)
-		if resizeActive and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-			updateResize(input)
-		end
-	end)
-	table.insert(Hub.Connections, resizeChanged)
-
-	local resizeEnded = UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			resizeActive = false
-		end
-	end)
-	table.insert(Hub.Connections, resizeEnded)
-
-	local closeConn = btnClose.MouseButton1Click:Connect(function()
-		windowObj:Close()
-	end)
-	local minConn = btnMin.MouseButton1Click:Connect(function()
-		applyMinimized(not self.IsMinimized)
-	end)
-	local openConn = btnOpen.MouseButton1Click:Connect(function()
-		if screenGui.Enabled then
-			applyMinimized(false)
-		else
-			windowObj:Open()
-		end
-	end)
-	table.insert(Hub.Connections, closeConn)
-	table.insert(Hub.Connections, minConn)
-	table.insert(Hub.Connections, openConn)
-
-	function windowObj:Notify(options)
-		return Hub:Notify(options)
-	end
-
-	function windowObj:Destroy()
-		Hub:Destroy()
-	end
-
-	windowObj.ScreenGui = screenGui
-	windowObj.Root = root
-	windowObj.Main = main
-	windowObj.Header = header
-	windowObj.Sidebar = side
-	windowObj.Pages = pageScroll
-	windowObj.NotificationContainer = nil
-	windowObj.ToggleIcon = toggleIcon
-
-	Hub.ScreenGui = screenGui
-	Hub.Window = windowObj
-	Hub.NotificationContainer = createInstance("Frame", {
-		Size = UDim2.new(0, 340, 1, -18),
-		Position = UDim2.new(1, -350, 0, 10),
-		BackgroundTransparency = 1
-	}, screenGui)
-	createInstance("UIListLayout", {
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		VerticalAlignment = Enum.VerticalAlignment.Top,
-		Padding = UDim.new(0, 8)
-	}, Hub.NotificationContainer)
-	createInstance("UIPadding", {
-		PaddingTop = UDim.new(0, 2)
-	}, Hub.NotificationContainer)
-
-	for i, tab in ipairs(windowObj.Tabs) do
-		if i == 1 then
-			selectTab(tab)
-		end
-	end
-
-	if options.Theme then
-		self:UpdateTheme(options.Theme)
-	end
-
-	if options.DefaultTab then
-		if type(options.DefaultTab) == "number" and windowObj.Tabs[options.DefaultTab] then
-			selectTab(windowObj.Tabs[options.DefaultTab])
-		else
-			for _, tab in ipairs(windowObj.Tabs) do
-				if tostring(tab.Name) == tostring(options.DefaultTab) then
-					selectTab(tab)
-					break
-				end
-			end
-		end
-	end
-
-	return windowObj
+function JustHub:InitializeUI(options)
+    if not isAlive() or self._initializing or self.Window then return false end
+    self._initializing = true
+    
+    self:ShowLoadingScreen(3, function() 
+        self._initializing = false
+        if not isAlive() then return end
+        self.Window = self:CreateWindow(options)
+    end)
+    return true
 end
 
-function Hub:ShowLoadingScreen(duration, callback)
-	duration = duration or 2.5
-	callback = callback or function() end
-
-	local gui = createInstance("ScreenGui", {
-		Name = "JustHubLoading",
-		ResetOnSpawn = false,
-		IgnoreGuiInset = true,
-		ZIndexBehavior = Enum.ZIndexBehavior.Global
-	}, playerGui or player:WaitForChild("PlayerGui"))
-
-	local overlay = createInstance("Frame", {
-		Size = UDim2.new(1, 0, 1, 0),
-		BorderSizePixel = 0
-	}, gui)
-	trackTheme(overlay, "BackgroundColor3", "Color Hub 1")
-
-	local card = createInstance("Frame", {
-		Size = UDim2.fromOffset(280, 116),
-		Position = UDim2.new(0.5, 0, 0.5, 0),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundTransparency = 0
-	}, overlay)
-	applyBaseCard(card)
-
-	local title = createInstance("TextLabel", {
-		Size = UDim2.new(1, -20, 0, 22),
-		Position = UDim2.fromOffset(10, 12),
-		BackgroundTransparency = 1,
-		Text = "JustHub",
-		Font = Enum.Font.GothamBold,
-		TextSize = 18
-	}, card)
-	trackTheme(title, "TextColor3", "Color Text")
-
-	local subtitle = createInstance("TextLabel", {
-		Size = UDim2.new(1, -20, 0, 18),
-		Position = UDim2.fromOffset(10, 36),
-		BackgroundTransparency = 1,
-		Text = "Loading compact interface",
-		Font = Enum.Font.Gotham,
-		TextSize = 11
-	}, card)
-	trackTheme(subtitle, "TextColor3", "Color Dark Text")
-
-	local bar = createInstance("Frame", {
-		Size = UDim2.new(1, -20, 0, 10),
-		Position = UDim2.fromOffset(10, 70),
-		BorderSizePixel = 0
-	}, card)
-	trackTheme(bar, "BackgroundColor3", "Color Hub 1")
-	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, bar)
-	local barStroke = createInstance("UIStroke", {Thickness = 1}, bar)
-	trackTheme(barStroke, "Color", "Color Stroke")
-
-	local fill = createInstance("Frame", {
-		Size = UDim2.new(0, 0, 1, 0),
-		BorderSizePixel = 0
-	}, bar)
-	trackTheme(fill, "BackgroundColor3", "Color Theme")
-	createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, fill)
-	trackChroma(fill, "BackgroundColor3")
-
-	local tweenBar = tween(fill, {Size = UDim2.new(1, 0, 1, 0)}, duration, Enum.EasingStyle.Linear)
-
-	task.spawn(function()
-		while tweenBar and tweenBar.PlaybackState == Enum.PlaybackState.Playing do
-			subtitle.TextTransparency = 0.1
-			task.wait(0.12)
-			subtitle.TextTransparency = 0.55
-			task.wait(0.12)
-		end
-	end)
-
-	tweenBar.Completed:Connect(function()
-		task.wait(0.25)
-		local fade = tween(overlay, {BackgroundTransparency = 1}, 0.25)
-		tween(card, {BackgroundTransparency = 1}, 0.25)
-		tween(title, {TextTransparency = 1}, 0.25)
-		tween(subtitle, {TextTransparency = 1}, 0.25)
-		tween(bar, {BackgroundTransparency = 1}, 0.25)
-		tween(fill, {BackgroundTransparency = 1}, 0.25)
-		fade.Completed:Wait()
-		gui:Destroy()
-		safeCall(callback)
-	end)
+local function serializeConfig(data)
+    local serialized = {}
+    for k, v in pairs(data) do
+        if typeof(v) == "Color3" then serialized[k] = {__type = "Color3", R = v.R, G = v.G, B = v.B}
+        elseif type(v) == "table" then serialized[k] = serializeConfig(v)
+        else serialized[k] = v end
+    end
+    return serialized
 end
 
-function Hub:InitializeUI(options)
-	self:ShowLoadingScreen(2.2, function()
-		self.Window = self:CreateWindow(options or {})
-	end)
+local function deserializeConfig(data)
+    local deserialized = {}
+    for k, v in pairs(data) do
+        if type(v) == "table" and v.__type == "Color3" then deserialized[k] = Color3.new(v.R, v.G, v.B)
+        elseif type(v) == "table" then deserialized[k] = deserializeConfig(v)
+        else deserialized[k] = v end
+    end
+    return deserialized
 end
 
-function Hub:SaveConfig(fileName)
-	fileName = fileName or "JustHub_Config.json"
-	if not writefile then
-		self:Notify({
-			Title = "Save Config",
-			Message = "File save is not available in this environment.",
-			Duration = 3
-		})
-		return false
-	end
-	local ok, err = pcall(function()
-		writefile(fileName, HttpService:JSONEncode(self.ConfigData))
-	end)
-	if ok then
-		self:Notify({
-			Title = "Save Config",
-			Message = "Saved to " .. fileName,
-			Duration = 3
-		})
-	else
-		warn(err)
-	end
-	return ok
+local function isSafeConfigFileName(fileName)
+    return type(fileName) == "string"
+        and fileName ~= ""
+        and fileName ~= "."
+        and fileName ~= ".."
+        and #fileName <= 128
+        and not fileName:find("/", 1, true)
+        and not fileName:find("\\", 1, true)
+        and not fileName:find(":", 1, true)
+        and not fileName:find("..", 1, true)
+        and not fileName:find("\0", 1, true)
 end
 
-function Hub:LoadConfig(fileName)
-	fileName = fileName or "JustHub_Config.json"
-	if not readfile then
-		self:Notify({
-			Title = "Load Config",
-			Message = "File load is not available in this environment.",
-			Duration = 3
-		})
-		return {}
-	end
-	local data = {}
-	local ok, result = pcall(function()
-		return HttpService:JSONDecode(readfile(fileName))
-	end)
-	if ok and type(result) == "table" then
-		data = result
-		self.ConfigData = data
-		self:ApplyConfig(data)
-		self:Notify({
-			Title = "Load Config",
-			Message = "Loaded from " .. fileName,
-			Duration = 3
-		})
-	else
-		warn(result)
-	end
-	return data
+function JustHub:SaveConfig(fileName)
+    fileName = fileName or "JustHub_Config.json"
+    if not isSafeConfigFileName(fileName) then return false, "Invalid filename" end
+    if not writefile then return false, "writefile not available in this executor" end
+
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(serializeConfig(JustHub.ConfigData)) end)
+    if not ok or not encoded then return false, "Encode failed: " .. tostring(encoded) end
+    local writeOk, writeErr = pcall(writefile, fileName, encoded)
+    if not writeOk then return false, "Write failed: " .. tostring(writeErr) end
+
+    pcall(function() StarterGui:SetCore("SendNotification", {Title = "Save Config", Text = "Saved: " .. fileName, Duration = 3}) end)
+    return true
 end
 
-function Hub:ToggleUIVisibility()
-	if self.Window then
-		self.Window:Toggle()
-	elseif self.ScreenGui then
-		self.ScreenGui.Enabled = not self.ScreenGui.Enabled
-	end
+function JustHub:LoadConfig(fileName)
+    fileName = fileName or "JustHub_Config.json"
+    if not isSafeConfigFileName(fileName) then return false, "Invalid filename" end
+    if not readfile then return false, "readfile not available in this executor" end
+
+    local readOk, contents = pcall(readfile, fileName)
+    if not readOk then return false, "Read failed: " .. tostring(contents) end
+    local decodeOk, decoded = pcall(function() return HttpService:JSONDecode(contents) end)
+    if not decodeOk or type(decoded) ~= "table" then return false, "Invalid JSON in config" end
+    local deserOk, deserialized = pcall(deserializeConfig, decoded)
+    if not deserOk or type(deserialized) ~= "table" then return false, "Deserialization failed" end
+
+    local applyOk, applyInfo = self:ApplyConfig(deserialized)
+    if not applyOk then return false, "Apply failed" end
+
+    for k, v in pairs(deserialized) do if JustHub.ConfigData[k] == nil then JustHub.ConfigData[k] = v end end
+    pcall(function() StarterGui:SetCore("SendNotification", {Title = "Load Config", Text = string.format("Loaded: %s (applied=%d, skipped=%d)", fileName, applyInfo.applied, applyInfo.skipped), Duration = 4}) end)
+    return true
 end
 
-function Hub:Notify(options)
-	options = options or {}
-	if self.NotificationContainer then
-		return notifyCore(
-			self.NotificationContainer,
-			options.Title or "Notice",
-			options.Message or "",
-			options.Duration or 3,
-			options.ShowProgress or false
-		)
-	end
-	pcall(function()
-		StarterGui:SetCore("SendNotification", {
-			Title = options.Title or "Notice",
-			Text = options.Message or "",
-			Duration = options.Duration or 3
-		})
-	end)
+function JustHub:UpdateTheme(newTheme)
+    self.Save.Theme = newTheme
+    local themeData = getCurrentTheme(newTheme)
+    
+    for obj, props in pairs(self.ThemeObjects) do
+        for prop, data in pairs(props) do
+            local skip = false
+            if self.ChromaEnabled and self.ChromaObjects[obj] and self.ChromaObjects[obj][prop] then
+                skip = true
+            end
+            
+            if not skip then
+                if data.CustomFunc then data.CustomFunc()
+                elseif themeData[data.ThemeKey] then obj[prop] = themeData[data.ThemeKey] end
+            end
+        end
+    end
 end
 
-function Hub:PromoNotify()
-	self:Notify({
-		Title = "JustHub",
-		Message = "Fresh layout, smaller footprint, cleaner control flow.",
-		Duration = 3,
-		ShowProgress = true
-	})
+function JustHub:SetTheme(newTheme) self:UpdateTheme(newTheme) end
+
+function JustHub:ToggleUIVisibility()
+    if self.ScreenGui and self.ScreenGui.Parent then self.ScreenGui.Enabled = not self.ScreenGui.Enabled end
 end
 
-function Hub:Destroy()
-	removeAllConnections()
-	self.ThemeObjects = {}
-	self.ChromaObjects = {}
-	self.ConfigData = {}
-	self.UndoStack = {}
-	self.RedoStack = {}
-	if self.ScreenGui then
-		self.ScreenGui:Destroy()
-		self.ScreenGui = nil
-	end
-	self.Window = nil
-	self.NotificationContainer = nil
+function JustHub:SetTransparency(alpha)
+    alpha = math.clamp(alpha or 0.15, 0, 1)
+    self.Save.Transparency = alpha
+    if self.Window and self.Window.MainFrame then self.Window.MainFrame.BackgroundTransparency = alpha end
 end
 
-return Hub
+function JustHub:SetKey(key) self.KeySystem.Enabled = true; self.KeySystem.Key = key end
+function JustHub:CheckKey(inputKey)
+    if not self.KeySystem.Enabled then return true end
+    return inputKey == self.KeySystem.Key
+end
+
+function JustHub:Notify(options)
+    options = options or {}
+    local title = tostring(options.Title or "")
+    local message = tostring(options.Message or "")
+    local duration = math.max(0, tonumber(options.Duration) or 5)
+    local showProgress = options.ShowProgress == true
+    if not self.NotificationContainer or not isAlive() then return end
+
+    local notifFrame = createInstance("Frame", {Size = UDim2.new(0, 300, 0, 0), BackgroundTransparency = 0.15, ClipsDescendants = true}, self.NotificationContainer)
+    applyTheme(notifFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, notifFrame); addBorder(notifFrame, "Color Stroke", 1)
+
+    local titleLabel = createInstance("TextLabel", {Text = title, Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 10, 0, 10), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, notifFrame)
+    applyTheme(titleLabel, "TextColor3", "Color Text")
+
+    local msgLabel = createInstance("TextLabel", {Text = message, Size = UDim2.new(1, -20, 0, 0), Position = UDim2.new(0, 10, 0, 35), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 12, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, AutomaticSize = Enum.AutomaticSize.Y}, notifFrame)
+    applyTheme(msgLabel, "TextColor3", "Color Dark Text")
+
+    local progressFrame
+    if showProgress then
+        progressFrame = createInstance("Frame", {Size = UDim2.new(1, 0, 0, 4), Position = UDim2.new(0, 0, 1, -4), BorderSizePixel = 0}, notifFrame)
+        applyTheme(progressFrame, "BackgroundColor3", "Color Theme"); registerChroma(progressFrame, "BackgroundColor3", "Color Theme")
+    end
+
+    local notificationThread
+    notificationThread = task.defer(function()
+        local function finish()
+            self._notificationThreads[notificationThread] = nil
+        end
+
+        if not isAlive() or not notifFrame.Parent then finish(); return end
+        task.wait()
+        if not isAlive() or not notifFrame.Parent then finish(); return end
+
+        local calculated = 10 + titleLabel.Size.Y.Offset + (msgLabel.TextBounds.Y > 0 and msgLabel.TextBounds.Y or 18) + 15
+        if showProgress then calculated = calculated + 4 end
+
+        tweenProperty(notifFrame, {Size = UDim2.new(0, 300, 0, calculated)}, 0.4, Enum.EasingStyle.Exponential)
+        task.wait(0.5)
+        if not isAlive() or not notifFrame.Parent then finish(); return end
+
+        if showProgress and progressFrame then tweenProperty(progressFrame, {Size = UDim2.new(0, 0, 0, 4)}, duration, Enum.EasingStyle.Linear) end
+        task.wait(duration)
+        if not isAlive() or not notifFrame.Parent then finish(); return end
+
+        local outTween = tweenProperty(notifFrame, {BackgroundTransparency = 1, Size = UDim2.new(0, 300, 0, 0)}, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        if outTween then connectOnce(outTween.Completed, function() if notifFrame then pcall(function() notifFrame:Destroy() end) end end) end
+        finish()
+    end)
+    self._notificationThreads[notificationThread] = true
+end
+
+function JustHub:PromoNotify()
+    if not self.PromoNotifyEnabled then return end
+    if self._promoThread then return end
+    self._promoThread = task.spawn(function()
+        while isAlive() and self.ScreenGui and self.ScreenGui.Parent do
+            self:Notify({Title = "JustHub UI", Message = "Thanks for using JustHub Library " .. self.Info.Version, Duration = 3, ShowProgress = true})
+            task.wait(30)
+        end
+        self._promoThread = nil
+    end)
+end
+
+function JustHub:Destroy()
+    if self._destroyed then return end
+    self._destroyed = true
+    self._initializing = false
+
+    for _, conn in ipairs(self.Connections) do pcall(function() conn:Disconnect() end) end
+    table.clear(self.Connections)
+
+    for _, tween in pairs(activeTweens) do
+        pcall(function() tween:Cancel() end)
+    end
+    table.clear(activeTweens)
+    if self._promoThread then
+        pcall(task.cancel, self._promoThread)
+    end
+    for thread in pairs(self._notificationThreads) do
+        pcall(task.cancel, thread)
+    end
+    table.clear(self._notificationThreads)
+
+    if chromaRenderConn then pcall(function() chromaRenderConn:Disconnect() end); chromaRenderConn = nil end
+    for _, sg in ipairs(self.ScreenGuis) do pcall(function() sg:Destroy() end) end
+    
+    table.clear(self.ScreenGuis)
+    table.clear(self.ThemeObjects)
+    table.clear(self.ChromaObjects)
+    table.clear(self.ControlRegistry)
+    table.clear(self.ControlAliases)
+    table.clear(self.AmbiguousControlAliases)
+    table.clear(self.Controls)
+    table.clear(self.UndoStack)
+    table.clear(self.RedoStack)
+
+    if self.ScreenGui then pcall(function() self.ScreenGui:Destroy() end); self.ScreenGui = nil end
+    self.NotificationContainer = nil; self.Window = nil; self._promoThread = nil
+end
+
+return JustHub
