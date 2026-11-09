@@ -53,7 +53,7 @@ JustHub.Themes = {
 	Rainbow = {["Color Hub 1"] = Color3.fromRGB(240, 240, 240), ["Color Hub 2"] = Color3.fromRGB(255, 255, 255), ["Color Stroke"] = Color3.fromRGB(200, 200, 200), ["Color Theme"] = Color3.fromRGB(255, 100, 100), ["Color Text"] = Color3.fromRGB(30, 30, 30), ["Color Dark Text"] = Color3.fromRGB(90, 90, 90)},
 	Midnight = {["Color Hub 1"] = Color3.fromRGB(0, 0, 20), ["Color Hub 2"] = Color3.fromRGB(5, 5, 30), ["Color Stroke"] = Color3.fromRGB(0, 0, 80), ["Color Theme"] = Color3.fromRGB(50, 50, 255), ["Color Text"] = Color3.fromRGB(250, 250, 255), ["Color Dark Text"] = Color3.fromRGB(190, 190, 220)}
 }
-JustHub.Info = {Version = "3.0.4 (Visual Polish)"}
+JustHub.Info = {Version = "3.1.0 (Modern Glass Surface)"}
 JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Transparency = 0.15, Locked = false}
 JustHub.ConfigData = {}
 JustHub.ControlRegistry = {}
@@ -88,8 +88,120 @@ JustHub.Icons = (function()
     return icons
 end)()
 
+JustHub.DesignTokens = {
+    Colors = {
+        SurfacePrimary = "Color Hub 1",
+        SurfaceElevated = "Color Hub 2",
+        Border = "Color Stroke",
+        Accent = "Color Theme",
+        TextPrimary = "Color Text",
+        TextSecondary = "Color Dark Text",
+    },
+    Transparency = {},
+    Geometry = {
+        WindowRadius = 14,
+        SidebarRadius = 12,
+        TabRadius = 8,
+        SectionRadius = 10,
+        ControlRadius = 9,
+        InputRadius = 7,
+        PopupRadius = 10,
+        ButtonRadius = 7,
+    },
+    Spacing = {XS = 4, SM = 8, MD = 12, LG = 16, XL = 20},
+    Animation = {
+        General = 0.18,
+        Hover = 0.14,
+        Press = 0.10,
+        TabTransition = 0.24,
+        PopupTransition = 0.24,
+        ToggleTransition = 0.22,
+        NotificationTransition = 0.30,
+    },
+    Opacity = {Border = 0.58, MutedIcon = 0.22},
+}
+
 local activeTweens = setmetatable({}, {__mode = "k"})
 local chromaRenderConn = nil
+local surfaceRegistry = setmetatable({}, {__mode = "k"})
+
+local function refreshTransparencyTokens()
+    local base = math.clamp(tonumber(JustHub.Save.Transparency) or 0.15, 0, 1)
+    local function derive(offset)
+        return math.clamp(base + ((1 - base) * offset), 0, 0.985)
+    end
+    local t = JustHub.DesignTokens.Transparency
+    t.MainWindow = base
+    t.Sidebar = derive(0.16)
+    t.Content = derive(0.30)
+    t.TabActive = derive(0.34)
+    t.TabHover = derive(0.58)
+    t.TabInactive = derive(0.78)
+    t.Section = derive(0.32)
+    t.Control = derive(0.42)
+    t.Input = derive(0.28)
+    t.Popup = derive(0.20)
+    t.Notification = derive(0.18)
+    t.Button = derive(0.30)
+end
+
+refreshTransparencyTokens()
+
+local function surfaceTransparency(kind)
+    local values = JustHub.DesignTokens.Transparency
+    return values[kind] or values.Control or 0.4
+end
+
+local function registerSurface(obj, kind)
+    if not obj or not kind then return obj end
+    local ok = pcall(function()
+        if obj:IsA("GuiObject") then
+            surfaceRegistry[obj] = {Kind = kind}
+            obj.BackgroundTransparency = surfaceTransparency(kind)
+        end
+    end)
+    if not ok then surfaceRegistry[obj] = nil end
+    return obj
+end
+
+local function hasAncestorName(parent, targetName)
+    local current = parent
+    while current do
+        if current.Name == targetName then return true end
+        current = current.Parent
+    end
+    return false
+end
+
+local function classifySurface(className, props, parent)
+    local name = props and props.Name or ""
+    if name == "MainFrame" then return "MainWindow" end
+    if name == "Sidebar" then return "Sidebar" end
+    if name == "ContentContainer" then return "Content" end
+    if name == "SearchFrame" then return "Input" end
+    if className == "Frame" and parent and string.find(parent.Name, "Dropdown", 1, true) then return "Popup" end
+    if hasAncestorName(parent, "NotificationContainer") and className == "Frame" and parent and parent.Name == "NotificationContainer" then
+        return "Notification"
+    end
+    if parent and parent.Name == "Sidebar" and className == "TextButton" then return "TabInactive" end
+    if className == "Frame" and parent and parent.Name == "SectionContent"
+        and props and props.BackgroundTransparency ~= 1 then return "Control" end
+    if className == "Frame" and parent and parent:IsA("ScrollingFrame")
+        and string.sub(parent.Name, -7) == "Content" then return "Section" end
+    if className == "TextBox" and (hasAncestorName(parent, "SectionContent") or hasAncestorName(parent, "Body")) then
+        return "Input"
+    end
+    if className == "TextButton" and props and type(props.Text) == "string" and props.Text ~= ""
+        and props.BackgroundTransparency ~= 1 and hasAncestorName(parent, "SectionContent") then return "Button" end
+    if props and type(props.BackgroundTransparency) == "number" and props.BackgroundTransparency < 1
+        and hasAncestorName(parent, "SectionContent") then return "Control" end
+    return nil
+end
+
+local function setSurfaceKind(obj, kind)
+    if obj and kind then surfaceRegistry[obj] = {Kind = kind} end
+    return obj
+end
 
 local function isAlive() return not JustHub._destroyed end
 
@@ -121,9 +233,32 @@ local function trackScreenGui(sg)
 end
 
 local function createInstance(className, props, parent)
+    if className == "UICorner" and parent and surfaceRegistry[parent] then
+        local radiusByKind = {
+            MainWindow = JustHub.DesignTokens.Geometry.WindowRadius,
+            Sidebar = JustHub.DesignTokens.Geometry.SidebarRadius,
+            Content = 12,
+            TabActive = JustHub.DesignTokens.Geometry.TabRadius,
+            TabInactive = JustHub.DesignTokens.Geometry.TabRadius,
+            Section = JustHub.DesignTokens.Geometry.SectionRadius,
+            Control = JustHub.DesignTokens.Geometry.ControlRadius,
+            Input = JustHub.DesignTokens.Geometry.InputRadius,
+            Popup = JustHub.DesignTokens.Geometry.PopupRadius,
+            Notification = JustHub.DesignTokens.Geometry.ControlRadius,
+            Button = JustHub.DesignTokens.Geometry.ButtonRadius,
+        }
+        local radius = radiusByKind[surfaceRegistry[parent].Kind]
+        local isPill = props and props.CornerRadius and props.CornerRadius.Scale >= 1
+        if radius and not isPill then
+            props = table.clone(props or {})
+            props.CornerRadius = UDim.new(0, radius)
+        end
+    end
     local obj = Instance.new(className)
     if props then for k, v in pairs(props) do obj[k] = v end end
     if parent then obj.Parent = parent end
+    local surfaceKind = classifySurface(className, props, parent)
+    if surfaceKind then registerSurface(obj, surfaceKind) end
     return obj
 end
 
@@ -142,7 +277,7 @@ end
 local function tweenProperty(guiObject, goal, time, easingStyle, easingDirection)
     if not guiObject or not guiObject.Parent then return nil end
     if activeTweens[guiObject] then activeTweens[guiObject]:Cancel() end
-    local ti = TweenInfo.new(time or 0.2, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out)
+    local ti = TweenInfo.new(time or JustHub.DesignTokens.Animation.General, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out)
     local tween = TweenService:Create(guiObject, ti, goal)
     activeTweens[guiObject] = tween
     connectOnce(tween.Completed, function()
@@ -188,7 +323,7 @@ function JustHub:UpdateThemeObject(obj, prop, newThemeKey)
 end
 
 local function addBorder(obj, themeKey, thickness)
-    local stroke = createInstance("UIStroke", {Thickness = thickness}, obj)
+    local stroke = createInstance("UIStroke", {Thickness = thickness, Transparency = JustHub.DesignTokens.Opacity.Border}, obj)
     applyTheme(stroke, "Color", themeKey)
     return stroke
 end
@@ -589,6 +724,7 @@ function SectionMethods:addToggle(options)
         Size = UDim2.new(0, 44, 0, 22), Position = UDim2.new(1, -54, 0.5, -11), BorderSizePixel = 0, ZIndex = 2
     }, frame)
     applyTheme(switchBg, "BackgroundColor3", default and "Color Theme" or "Color Hub 1")
+    registerSurface(switchBg, "Button")
     createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, switchBg)
     addBorder(switchBg, "Color Stroke", 1)
 
@@ -603,14 +739,14 @@ function SectionMethods:addToggle(options)
     local hitButton = createInstance("TextButton", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 5}, frame)
 
     local function updateVisuals(isActive)
-        tweenProperty(circle, {Position = isActive and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)}, 0.25)
+        tweenProperty(circle, {Position = isActive and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)}, JustHub.DesignTokens.Animation.ToggleTransition)
         local ct = getCurrentTheme(JustHub.Save.Theme)
         if isActive then
-            tweenProperty(switchBg, {BackgroundColor3 = ct["Color Theme"]}, 0.25)
+            tweenProperty(switchBg, {BackgroundColor3 = ct["Color Theme"]}, JustHub.DesignTokens.Animation.ToggleTransition)
             registerChroma(switchBg, "BackgroundColor3", "Color Theme")
             JustHub:UpdateThemeObject(switchBg, "BackgroundColor3", "Color Theme")
         else
-            tweenProperty(switchBg, {BackgroundColor3 = ct["Color Hub 1"]}, 0.25)
+            tweenProperty(switchBg, {BackgroundColor3 = ct["Color Hub 1"]}, JustHub.DesignTokens.Animation.ToggleTransition)
             JustHub:UnregisterChroma(switchBg, "BackgroundColor3")
             JustHub:UpdateThemeObject(switchBg, "BackgroundColor3", "Color Hub 1")
         end
@@ -698,6 +834,7 @@ function SectionMethods:addSlider(options)
         Size = UDim2.new(1, 0, 0, 6), Position = UDim2.new(0, 0, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)
     }, trackArea)
     applyTheme(track, "BackgroundColor3", "Color Hub 1")
+    registerSurface(track, "Button")
     createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, track)
 
     local ratio = math.clamp((default - minVal) / (maxVal - minVal), 0, 1)
@@ -881,9 +1018,9 @@ function SectionMethods:addDropdown(options)
 
     local function closeDropdown()
         isOpen = false; frame.ZIndex = 1
-        tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 42)}, 0.25)
-        tweenProperty(body, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
-        tweenProperty(arrow, {Rotation = 0}, 0.25)
+        tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 42)}, JustHub.DesignTokens.Animation.PopupTransition)
+        tweenProperty(body, {Size = UDim2.new(1, 0, 0, 0)}, JustHub.DesignTokens.Animation.PopupTransition)
+        tweenProperty(arrow, {Rotation = 0}, JustHub.DesignTokens.Animation.PopupTransition)
         searchBox.Text = ""
     end
 
@@ -951,9 +1088,9 @@ function SectionMethods:addDropdown(options)
         isOpen = not isOpen
         if isOpen then
             frame.ZIndex = 50
-            tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 192)}, 0.3)
-            tweenProperty(body, {Size = UDim2.new(1, 0, 0, 150)}, 0.3)
-            tweenProperty(arrow, {Rotation = 180}, 0.3)
+            tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 192)}, JustHub.DesignTokens.Animation.PopupTransition)
+            tweenProperty(body, {Size = UDim2.new(1, 0, 0, 150)}, JustHub.DesignTokens.Animation.PopupTransition)
+            tweenProperty(arrow, {Rotation = 180}, JustHub.DesignTokens.Animation.PopupTransition)
             searchBox.Text = ""
             renderItems()
         else closeDropdown() end
@@ -1017,9 +1154,9 @@ function SectionMethods:addMultiDropdown(options)
 
     local function closeDropdown()
         isOpen = false; frame.ZIndex = 1
-        tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 42)}, 0.25)
-        tweenProperty(body, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
-        tweenProperty(arrow, {Rotation = 0}, 0.25)
+        tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 42)}, JustHub.DesignTokens.Animation.PopupTransition)
+        tweenProperty(body, {Size = UDim2.new(1, 0, 0, 0)}, JustHub.DesignTokens.Animation.PopupTransition)
+        tweenProperty(arrow, {Rotation = 0}, JustHub.DesignTokens.Animation.PopupTransition)
         searchBox.Text = ""
     end
 
@@ -1126,9 +1263,9 @@ function SectionMethods:addMultiDropdown(options)
         isOpen = not isOpen
         if isOpen then
             frame.ZIndex = 50
-            tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 192)}, 0.3)
-            tweenProperty(body, {Size = UDim2.new(1, 0, 0, 150)}, 0.3)
-            tweenProperty(arrow, {Rotation = 180}, 0.3)
+            tweenProperty(frame, {Size = UDim2.new(1, 0, 0, 192)}, JustHub.DesignTokens.Animation.PopupTransition)
+            tweenProperty(body, {Size = UDim2.new(1, 0, 0, 150)}, JustHub.DesignTokens.Animation.PopupTransition)
+            tweenProperty(arrow, {Rotation = 180}, JustHub.DesignTokens.Animation.PopupTransition)
             searchBox.Text = ""; renderItems()
         else closeDropdown() end
     end))
@@ -1230,8 +1367,12 @@ function SectionMethods:addScriptBox(options)
     local runBtn = createInstance("TextButton", {Text = "Run", Size = UDim2.new(0, 50, 0, 34), Position = UDim2.new(1, -60, 0, 40), TextColor3 = Color3.fromRGB(20, 20, 20), Font = Enum.Font.GothamBold, TextSize = 13, AutoButtonColor = false}, frame)
     applyTheme(runBtn, "BackgroundColor3", "Color Theme"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, runBtn); registerChroma(runBtn, "BackgroundColor3", "Color Theme")
 
-    addConnection(runBtn.MouseEnter:Connect(function() tweenProperty(runBtn, {BackgroundTransparency = 0.2}, 0.15) end))
-    addConnection(runBtn.MouseLeave:Connect(function() tweenProperty(runBtn, {BackgroundTransparency = 0}, 0.15) end))
+    addConnection(runBtn.MouseEnter:Connect(function()
+        tweenProperty(runBtn, {BackgroundTransparency = math.max(0, surfaceTransparency("Button") - 0.12)}, JustHub.DesignTokens.Animation.Hover)
+    end))
+    addConnection(runBtn.MouseLeave:Connect(function()
+        tweenProperty(runBtn, {BackgroundTransparency = surfaceTransparency("Button")}, JustHub.DesignTokens.Animation.Hover)
+    end))
     addConnection(runBtn.MouseButton1Click:Connect(function()
         task.spawn(function()
             local ok, err = pcall(callback, inputBox.Text)
@@ -1402,8 +1543,12 @@ function SectionMethods:addConfigManager()
     local deleteBtn = createInstance("TextButton", {Text = "Delete Profile", Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 82), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false}, frame)
     applyTheme(deleteBtn, "BackgroundColor3", "Color Stroke"); applyTheme(deleteBtn, "TextColor3", "Color Dark Text"); createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, deleteBtn)
 
-    addConnection(saveBtn.MouseEnter:Connect(function() tweenProperty(saveBtn, {BackgroundTransparency = 0.2}, 0.15) end))
-    addConnection(saveBtn.MouseLeave:Connect(function() tweenProperty(saveBtn, {BackgroundTransparency = 0}, 0.15) end))
+    addConnection(saveBtn.MouseEnter:Connect(function()
+        tweenProperty(saveBtn, {BackgroundTransparency = math.max(0, surfaceTransparency("Button") - 0.12)}, JustHub.DesignTokens.Animation.Hover)
+    end))
+    addConnection(saveBtn.MouseLeave:Connect(function()
+        tweenProperty(saveBtn, {BackgroundTransparency = surfaceTransparency("Button")}, JustHub.DesignTokens.Animation.Hover)
+    end))
     addConnection(loadBtn.MouseEnter:Connect(function() tweenProperty(loadBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, 0.15) end))
     addConnection(loadBtn.MouseLeave:Connect(function() tweenProperty(loadBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.15) end))
     addConnection(deleteBtn.MouseEnter:Connect(function() tweenProperty(deleteBtn, {BackgroundColor3 = Color3.fromRGB(200, 60, 60), TextColor3 = Color3.fromRGB(255, 255, 255)}, 0.15) end))
@@ -1443,12 +1588,16 @@ function JustHub:CreateWindow(options)
     local screenGui = trackScreenGui(createInstance("ScreenGui", {Name = "JustHub", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Global}, targetParent))
     self.ScreenGui = screenGui; JustHub.Save.Theme = themeName
 
+    local initialCamera = workspace.CurrentCamera
+    local initialViewport = initialCamera and initialCamera.ViewportSize or Vector2.new(1280, 720)
+    local initialWidth = math.max(220, math.min(JustHub.Save.UISize[1], initialViewport.X - 24))
+    local initialHeight = math.max(200, math.min(JustHub.Save.UISize[2], initialViewport.Y - 24))
     local mainFrame = createInstance("Frame", {
         Name = "MainFrame", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, JustHub.Save.UISize[1], 0, JustHub.Save.UISize[2]),
+        Size = UDim2.new(0, initialWidth, 0, initialHeight),
         BackgroundTransparency = JustHub.Save.Transparency, BorderSizePixel = 0, ClipsDescendants = true, Active = true, ZIndex = 1
     }, screenGui)
-    applyTheme(mainFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, mainFrame)
+    applyTheme(mainFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, JustHub.DesignTokens.Geometry.WindowRadius)}, mainFrame)
     local mainBorder = addBorder(mainFrame, "Color Stroke", 1); registerChroma(mainBorder, "Color", "Color Stroke")
 
     local topBar = createInstance("Frame", {Name = "TopBar", Size = UDim2.new(1, 0, 0, 52), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
@@ -1464,9 +1613,15 @@ function JustHub:CreateWindow(options)
 
     local function createWinBtn(name, themeKey, order, text)
         local btn = createInstance("TextButton", {Name = name, Text = text or "", Size = UDim2.new(0, 14, 0, 14), LayoutOrder = order, AutoButtonColor = false, BorderSizePixel = 0, TextSize = 10, ZIndex = 2}, btnContainer)
-        createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, btn); applyTheme(btn, "BackgroundColor3", themeKey)
-        addConnection(btn.MouseEnter:Connect(function() tweenProperty(btn, {BackgroundTransparency = 0.2}, 0.2) end))
-        addConnection(btn.MouseLeave:Connect(function() tweenProperty(btn, {BackgroundTransparency = 0}, 0.2) end))
+        applyTheme(btn, "BackgroundColor3", themeKey)
+        registerSurface(btn, "Button")
+        createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, btn)
+        addConnection(btn.MouseEnter:Connect(function()
+            tweenProperty(btn, {BackgroundTransparency = math.max(0, surfaceTransparency("Button") - 0.12)}, JustHub.DesignTokens.Animation.Hover)
+        end))
+        addConnection(btn.MouseLeave:Connect(function()
+            tweenProperty(btn, {BackgroundTransparency = surfaceTransparency("Button")}, JustHub.DesignTokens.Animation.Hover)
+        end))
         return btn
     end
 
@@ -1488,9 +1643,17 @@ function JustHub:CreateWindow(options)
     applyTheme(profileName, "TextColor3", "Color Text")
 
     local sidebar = createInstance("Frame", {Name = "Sidebar", Size = UDim2.new(0, JustHub.Save.TabSize, 1, -142), Position = UDim2.new(0, 20, 0, 118), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    applyTheme(sidebar, "BackgroundColor3", "Color Hub 1")
+    registerSurface(sidebar, "Sidebar")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, JustHub.DesignTokens.Geometry.SidebarRadius)}, sidebar)
+    addBorder(sidebar, "Color Stroke", 1)
     createInstance("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6)}, sidebar)
 
     local contentContainer = createInstance("Frame", {Name = "ContentContainer", Size = UDim2.new(1, -(JustHub.Save.TabSize + 50), 1, -82), Position = UDim2.new(0, JustHub.Save.TabSize + 30, 0, 62), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    applyTheme(contentContainer, "BackgroundColor3", "Color Hub 1")
+    registerSurface(contentContainer, "Content")
+    createInstance("UICorner", {CornerRadius = UDim.new(0, 12)}, contentContainer)
+    addBorder(contentContainer, "Color Stroke", 1)
 
     local searchFrame = createInstance("Frame", {Name = "SearchFrame", Size = UDim2.new(1, 0, 0, 32), Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0.08, BorderSizePixel = 0, ZIndex = 2}, contentContainer)
     applyTheme(searchFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, searchFrame); addBorder(searchFrame, "Color Stroke", 1)
@@ -1521,7 +1684,8 @@ function JustHub:CreateWindow(options)
     tweenProperty(mainFrame, {Position = UDim2.new(0.5, 0, 0.5, 0)}, 0.6, Enum.EasingStyle.Exponential)
 
     local windowState = "normal"
-    local savedNormalSize = UDim2.new(0, JustHub.Save.UISize[1], 0, JustHub.Save.UISize[2])
+    local savedNormalSize = mainFrame.Size
+    local requestedNormalSize = UDim2.new(0, JustHub.Save.UISize[1], 0, JustHub.Save.UISize[2])
     local savedNormalPos  = UDim2.new(0.5, 0, 0.5, 0)
     local isLocked = JustHub.Save.Locked
 
@@ -1564,12 +1728,14 @@ function JustHub:CreateWindow(options)
             mainFrame.Visible = false
             local showUI = trackScreenGui(createInstance("ScreenGui", {Name = "JustHubShowUI", ResetOnSpawn = false}, targetParent))
             local showBtn = createInstance("TextButton", {Name = "ShowUIButton", Size = UDim2.new(0, 44, 0, 44), Position = UDim2.new(0.5, -22, 0, 10), Text = "UI", Font = Enum.Font.GothamBold, TextSize = 13, AutoButtonColor = false}, showUI)
-            applyTheme(showBtn, "BackgroundColor3", "Color Hub 2"); applyTheme(showBtn, "TextColor3", "Color Text"); createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, showBtn); addBorder(showBtn, "Color Stroke", 1)
+            applyTheme(showBtn, "BackgroundColor3", "Color Hub 2"); applyTheme(showBtn, "TextColor3", "Color Text")
+            registerSurface(showBtn, "Button")
+            createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, showBtn); addBorder(showBtn, "Color Stroke", 1)
 
             addConnection(showBtn.MouseButton1Click:Connect(function()
                 if not isAlive() then return end
                 mainFrame.Visible = true; windowState = prevState or "normal"
-                tweenProperty(mainFrame, {Position = savedNormalPos, BackgroundTransparency = JustHub.Save.Transparency}, 0.5, Enum.EasingStyle.Exponential)
+                tweenProperty(mainFrame, {Position = savedNormalPos, BackgroundTransparency = surfaceTransparency("MainWindow"), Size = savedNormalSize}, 0.5, Enum.EasingStyle.Exponential)
                 pcall(function() showUI:Destroy() end)
                 for i = #JustHub.ScreenGuis, 1, -1 do if JustHub.ScreenGuis[i] == showUI then table.remove(JustHub.ScreenGuis, i) end end
             end))
@@ -1618,9 +1784,14 @@ function JustHub:CreateWindow(options)
             if windowState == "normal" then savedNormalPos = newPos end
         elseif isResizing then
             local delta = input.Position - dragStart
-            local minW, minH = JustHub.Save.UISize[1] * 0.7, JustHub.Save.UISize[2] * 0.7
-            local newSize = UDim2.new(0, math.max(minW, dragStartSize.X.Offset + delta.X), 0, math.max(minH, dragStartSize.Y.Offset + delta.Y))
-            mainFrame.Size = newSize; savedNormalSize = newSize
+            local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(JustHub.Save.UISize[1], JustHub.Save.UISize[2])
+            local minW = math.min(JustHub.Save.UISize[1] * 0.7, math.max(220, viewport.X - 24))
+            local minH = math.min(JustHub.Save.UISize[2] * 0.7, math.max(200, viewport.Y - 24))
+            local maxW, maxH = math.max(220, viewport.X - 24), math.max(200, viewport.Y - 24)
+            local newW = math.clamp(dragStartSize.X.Offset + delta.X, minW, maxW)
+            local newH = math.clamp(dragStartSize.Y.Offset + delta.Y, minH, maxH)
+            local newSize = UDim2.new(0, newW, 0, newH)
+            mainFrame.Size = newSize; savedNormalSize = newSize; requestedNormalSize = newSize
         end
     end))
 
@@ -1645,6 +1816,64 @@ function JustHub:CreateWindow(options)
     local windowObj = {ScreenGui = screenGui, MainFrame = mainFrame, TopBar = topBar, Sidebar = sidebar, ContentContainer = tabsContainer, Tabs = {}}
     self.Window = windowObj
 
+    local viewportConnection
+    local function applyResponsiveLayout()
+        local camera = workspace.CurrentCamera
+        local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+        local desiredW = math.max(220, requestedNormalSize.X.Offset)
+        local desiredH = math.max(200, requestedNormalSize.Y.Offset)
+        local fittedW = math.max(220, math.min(desiredW, math.max(220, viewport.X - 24)))
+        local fittedH = math.max(200, math.min(desiredH, math.max(200, viewport.Y - 24)))
+        savedNormalSize = UDim2.new(0, fittedW, 0, fittedH)
+        if windowState == "normal" then
+            mainFrame.Size = savedNormalSize
+        end
+
+        local compact = fittedW < 540 or viewport.Y < 500
+        local sideWidth = compact and math.clamp(math.floor(fittedW * 0.25), 64, 96)
+            or math.min(JustHub.Save.TabSize, math.floor(fittedW * 0.28))
+        titleLabel.Size = UDim2.new(compact and 0.44 or 0.62, 0, 0, 22)
+        subtitleLabel.Size = UDim2.new(compact and 0.44 or 0.62, 0, 0, 15)
+        titleLabel.TextSize = compact and 14 or 16
+        subtitleLabel.TextSize = compact and 10 or 11
+        titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+        subtitleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+        btnContainer.Size = UDim2.new(0, compact and 84 or 100, 1, 0)
+        sidebar.Size = UDim2.new(0, sideWidth, 1, -142)
+        profileFrame.Size = UDim2.new(0, sideWidth, 0, 46)
+        profileName.Visible = not compact
+        contentContainer.Position = UDim2.new(0, sideWidth + 30, 0, 62)
+        contentContainer.Size = UDim2.new(1, -(sideWidth + 50), 1, -82)
+        for _, tab in ipairs(windowObj.Tabs) do
+            tab.Button.Size = UDim2.new(1, 0, 0, compact and 34 or 36)
+            if tab.Icon then
+                tab.Icon.Visible = not compact
+                tab.Icon.Position = UDim2.new(0, 15, 0.5, -9)
+            end
+            if tab.TextLabel then
+                local textX = (not compact and tab.Icon) and 40 or 16
+                tab.TextLabel.Position = UDim2.new(0, textX, 0, 0)
+                tab.TextLabel.Size = UDim2.new(1, -(textX + 8), 1, 0)
+                tab.TextLabel.TextSize = compact and 11 or 13
+            end
+        end
+    end
+
+    local function bindViewportCamera()
+        if viewportConnection then
+            removeConnection(viewportConnection)
+            pcall(function() viewportConnection:Disconnect() end)
+            viewportConnection = nil
+        end
+        local camera = workspace.CurrentCamera
+        if camera then
+            viewportConnection = addConnection(camera:GetPropertyChangedSignal("ViewportSize"):Connect(applyResponsiveLayout))
+        end
+        applyResponsiveLayout()
+    end
+    addConnection(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(bindViewportCamera))
+    bindViewportCamera()
+
     addConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(function()
         local term = searchBox.Text:lower()
         for _, tab in ipairs(windowObj.Tabs) do
@@ -1665,41 +1894,72 @@ function JustHub:CreateWindow(options)
     function windowObj:addTab(tabName, iconName)
         tabName = tabName or "Tab"
         local btn = createInstance("TextButton", {Name = tabName .. "Button", Text = "", Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 1, AutoButtonColor = false, ZIndex = 2}, sidebar)
-        applyTheme(btn, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, btn)
-        createInstance("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 8)}, btn); createInstance("UIPadding", {PaddingLeft = UDim.new(0, 10)}, btn)
+        applyTheme(btn, "BackgroundColor3", "Color Hub 1")
+        registerSurface(btn, "TabInactive")
+        createInstance("UICorner", {CornerRadius = UDim.new(0, JustHub.DesignTokens.Geometry.TabRadius)}, btn)
+
+        local indicator = createInstance("Frame", {
+            Name = "ActiveIndicator", Size = UDim2.new(0, 3, 0, 16), Position = UDim2.new(0, 6, 0.5, -8),
+            BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 4
+        }, btn)
+        applyTheme(indicator, "BackgroundColor3", "Color Theme")
+        createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, indicator)
 
         local tabIcon
         if iconName and JustHub.Icons[iconName] then
-            tabIcon = createInstance("ImageLabel", {Size = UDim2.new(0, 18, 0, 18), BackgroundTransparency = 1, Image = JustHub.Icons[iconName], ZIndex = 2}, btn)
+            tabIcon = createInstance("ImageLabel", {Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(0, 15, 0.5, -9), BackgroundTransparency = 1, Image = JustHub.Icons[iconName], ZIndex = 2}, btn)
             applyTheme(tabIcon, "ImageColor3", "Color Dark Text")
         end
 
-        local tabText = createInstance("TextLabel", {Text = tabName, Size = UDim2.new(1, -26, 1, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, btn)
+        local textX = tabIcon and 40 or 16
+        local tabText = createInstance("TextLabel", {Text = tabName, Size = UDim2.new(1, -(textX + 8), 1, 0), Position = UDim2.new(0, textX, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 2}, btn)
         applyTheme(tabText, "TextColor3", "Color Dark Text")
 
         local tabContent = createInstance("ScrollingFrame", {Name = tabName .. "Content", Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ScrollBarThickness = 2, BorderSizePixel = 0, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0, 0, 0, 0), Visible = false, ZIndex = 2}, tabsContainer)
         applyTheme(tabContent, "ScrollBarImageColor3", "Color Stroke"); createInstance("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 10), HorizontalAlignment = Enum.HorizontalAlignment.Center}, tabContent)
 
-        local tabObj = {Name = tabName, Button = btn, Content = tabContent, Sections = {}}
+        local tabObj = {Name = tabName, Button = btn, Content = tabContent, Sections = {}, Indicator = indicator, Icon = tabIcon, TextLabel = tabText}
         table.insert(windowObj.Tabs, tabObj)
 
         local function updateTabs()
+            local theme = getCurrentTheme(JustHub.Save.Theme)
             for _, t in ipairs(windowObj.Tabs) do
-                local active = (t == tabObj); t.Content.Visible = active
-                tweenProperty(t.Button, {BackgroundTransparency = active and 0 or 1}, 0.3)
-                local textObj = t.Button:FindFirstChildOfClass("TextLabel"); local imgObj = t.Button:FindFirstChildOfClass("ImageLabel")
-                if textObj then JustHub:UpdateThemeObject(textObj, "TextColor3", active and "Color Text" or "Color Dark Text"); tweenProperty(textObj, {TextColor3 = getCurrentTheme(JustHub.Save.Theme)[active and "Color Text" or "Color Dark Text"]}, 0.3) end
-                if imgObj then JustHub:UpdateThemeObject(imgObj, "ImageColor3", active and "Color Text" or "Color Dark Text"); tweenProperty(imgObj, {ImageColor3 = getCurrentTheme(JustHub.Save.Theme)[active and "Color Text" or "Color Dark Text"]}, 0.3) end
+                local active = (t == tabObj)
+                t.Content.Visible = active
+                setSurfaceKind(t.Button, active and "TabActive" or "TabInactive")
+                tweenProperty(t.Button, {BackgroundTransparency = surfaceTransparency(active and "TabActive" or "TabInactive")}, JustHub.DesignTokens.Animation.TabTransition)
+                if t.Indicator then tweenProperty(t.Indicator, {BackgroundTransparency = active and 0 or 1}, JustHub.DesignTokens.Animation.TabTransition) end
+                local textObj = t.Button:FindFirstChildOfClass("TextLabel")
+                local imgObj = t.Button:FindFirstChildOfClass("ImageLabel")
+                if textObj then
+                    local textKey = active and "Color Text" or "Color Dark Text"
+                    JustHub:UpdateThemeObject(textObj, "TextColor3", textKey)
+                    tweenProperty(textObj, {TextColor3 = theme[textKey]}, JustHub.DesignTokens.Animation.TabTransition)
+                end
+                if imgObj then
+                    local iconKey = active and "Color Text" or "Color Dark Text"
+                    JustHub:UpdateThemeObject(imgObj, "ImageColor3", iconKey)
+                    tweenProperty(imgObj, {ImageColor3 = theme[iconKey]}, JustHub.DesignTokens.Animation.TabTransition)
+                end
             end
         end
 
+        addConnection(btn.MouseEnter:Connect(function()
+            if tabObj.Content.Visible then return end
+            tweenProperty(btn, {BackgroundTransparency = surfaceTransparency("TabHover")}, JustHub.DesignTokens.Animation.Hover)
+        end))
+        addConnection(btn.MouseLeave:Connect(function()
+            if tabObj.Content.Visible then return end
+            tweenProperty(btn, {BackgroundTransparency = surfaceTransparency("TabInactive")}, JustHub.DesignTokens.Animation.Hover)
+        end))
         addConnection(btn.MouseButton1Click:Connect(updateTabs))
         if #windowObj.Tabs == 1 then updateTabs() end
+        if applyResponsiveLayout then applyResponsiveLayout() end
 
         function tabObj:addSection(sectionName)
             sectionName = sectionName or "Section"
             local secFrame = createInstance("Frame", {Name = sectionName, Size = UDim2.new(1, -4, 0, 0), BackgroundTransparency = 0.22, AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 2}, tabContent)
-            applyTheme(secFrame, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, secFrame); addBorder(secFrame, "Color Stroke", 1)
+            applyTheme(secFrame, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(0, JustHub.DesignTokens.Geometry.SectionRadius)}, secFrame); addBorder(secFrame, "Color Stroke", 1)
 
             local secTitle = createInstance("TextLabel", {Name = "SectionTitle", Text = "  " .. sectionName, Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 1, Font = Enum.Font.GothamSemibold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, secFrame)
             applyTheme(secTitle, "TextColor3", "Color Text")
@@ -1867,9 +2127,21 @@ function JustHub:ToggleUIVisibility()
 end
 
 function JustHub:SetTransparency(alpha)
-    alpha = math.clamp(alpha or 0.15, 0, 1)
+    alpha = math.clamp(tonumber(alpha) or 0.15, 0, 1)
     self.Save.Transparency = alpha
-    if self.Window and self.Window.MainFrame then self.Window.MainFrame.BackgroundTransparency = alpha end
+    refreshTransparencyTokens()
+    for obj, record in pairs(surfaceRegistry) do
+        if obj and obj.Parent and record then
+            if activeTweens[obj] then
+                pcall(function() activeTweens[obj]:Cancel() end)
+                activeTweens[obj] = nil
+            end
+            pcall(function() obj.BackgroundTransparency = surfaceTransparency(record.Kind) end)
+        else
+            surfaceRegistry[obj] = nil
+        end
+    end
+    return true
 end
 
 function JustHub:SetKey(key) self.KeySystem.Enabled = true; self.KeySystem.Key = key end
@@ -1886,7 +2158,7 @@ function JustHub:Notify(options)
     local showProgress = options.ShowProgress == true
     if not self.NotificationContainer or not isAlive() then return end
 
-    local notifFrame = createInstance("Frame", {Size = UDim2.new(0, 300, 0, 0), BackgroundTransparency = 0.15, ClipsDescendants = true}, self.NotificationContainer)
+    local notifFrame = createInstance("Frame", {Name = "NotificationSurface", Size = UDim2.new(0, 300, 0, 0), BackgroundTransparency = 0.15, ClipsDescendants = true}, self.NotificationContainer)
     applyTheme(notifFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, notifFrame); addBorder(notifFrame, "Color Stroke", 1)
 
     local titleLabel = createInstance("TextLabel", {Text = title, Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 10, 0, 10), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, notifFrame)
@@ -1922,7 +2194,7 @@ function JustHub:Notify(options)
         task.wait(duration)
         if not isAlive() or not notifFrame.Parent then finish(); return end
 
-        local outTween = tweenProperty(notifFrame, {BackgroundTransparency = 1, Size = UDim2.new(0, 300, 0, 0)}, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        local outTween = tweenProperty(notifFrame, {BackgroundTransparency = 1, Size = UDim2.new(0, 300, 0, 0)}, JustHub.DesignTokens.Animation.NotificationTransition, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
         if outTween then connectOnce(outTween.Completed, function() if notifFrame then pcall(function() notifFrame:Destroy() end) end end) end
         finish()
     end)
@@ -1966,6 +2238,7 @@ function JustHub:Destroy()
     
     table.clear(self.ScreenGuis)
     table.clear(self.ThemeObjects)
+    table.clear(surfaceRegistry)
     table.clear(self.ChromaObjects)
     table.clear(self.ControlRegistry)
     table.clear(self.ControlAliases)
