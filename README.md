@@ -123,22 +123,31 @@ Quick Start
 
 The following example assumes JustHub has been loaded as a ModuleScript.
 
+```
 local JustHub = require(path.to.JustHub2)
+```
 
 -- Create the main window
+```
 local Window = JustHub:CreateWindow({
     Name = "My Hub",
     SubTitle = "My Custom Interface",
     Theme = "Darker"
 })
+```
 
 -- Create a navigation tab
+```
 local MainTab = Window:addTab("Main", "home")
+```
 
 -- Create a section
+```
 local MainSection = MainTab:addSection("General")
+```
 
 -- Add a toggle
+```
 MainSection:addToggle({
     Name = "Example Toggle",
     Default = false,
@@ -147,8 +156,10 @@ MainSection:addToggle({
         print("Toggle:", value)
     end
 })
+```
 
 -- Add a slider
+```
 MainSection:addSlider({
     Name = "Walk Speed",
     Min = 16,
@@ -159,8 +170,10 @@ MainSection:addSlider({
         print("Slider:", value)
     end
 })
+```
 
 -- Add a button
+```
 MainSection:addButton({
     Name = "Example Action",
     ButtonText = "Execute",
@@ -169,6 +182,7 @@ MainSection:addButton({
         print("Button clicked!")
     end
 })
+```
 
 Note: Replace the ModuleScript path with the actual location of your JustHub module.
 
@@ -188,7 +202,7 @@ MainSection:addToggle({
 })
 
 Slider
-
+```
 MainSection:addSlider({
     Name = "Speed",
     Min = 0,
@@ -200,9 +214,10 @@ MainSection:addSlider({
         print(value)
     end
 })
+```
 
 TextBox
-
+```
 MainSection:addTextBox({
     Name = "Player Name",
     Default = "",
@@ -211,9 +226,10 @@ MainSection:addTextBox({
         print(value)
     end
 })
+```
 
 Dropdown
-
+```
 MainSection:addDropdown({
     Name = "Select Option",
     Default = "Option 1",
@@ -228,9 +244,10 @@ MainSection:addDropdown({
         print(value)
     end
 })
+```
 
 MultiDropdown
-
+```
 MainSection:addMultiDropdown({
     Name = "Select Options",
     Presets = {
@@ -243,9 +260,10 @@ MainSection:addMultiDropdown({
         print(values)
     end
 })
+```
 
 Button
-
+```
 MainSection:addButton({
     Name = "Test",
     ButtonText = "Click Me",
@@ -254,29 +272,33 @@ MainSection:addButton({
         print("Action executed")
     end
 })
+```
 
 Config Manager
-
+```
 MainSection:addConfigManager()
+```
 
 Notification
-
+```
 JustHub:Notify({
     Title = "JustHub",
     Message = "Operation completed successfully!",
     Duration = 3
 })
+```
 
 ---
 
 Theme Customization
 
 Change the active theme using:
-
+```
 JustHub:SetTheme("Purple")
-
+```
 Register a custom theme:
 
+```
 JustHub:RegisterTheme("Custom", {
     ["Color Hub 1"] = Color3.fromRGB(15, 15, 20),
     ["Color Hub 2"] = Color3.fromRGB(25, 25, 30),
@@ -287,6 +309,7 @@ JustHub:RegisterTheme("Custom", {
 })
 
 JustHub:SetTheme("Custom")
+```
 
 Transparency Configuration
 
@@ -318,6 +341,7 @@ Configuration API
 
 Save the current configuration:
 
+```
 local success, err = JustHub:SaveConfig("MyConfig.json")
 
 if success then
@@ -333,6 +357,7 @@ local success, err = JustHub:LoadConfig("MyConfig.json")
 if not success then
     warn(err)
 end
+```
 
 Configuration persistence depends on compatible file APIs provided by the execution environment, including "writefile" and "readfile".
 
@@ -361,16 +386,6 @@ Method| Description
 "Destroy()"| Cleans up and destroys the UI
 
 ---
-
-Project Structure
-
-JustHub/
-│
-├── JustHub2.lua
-│   └── Main GUI framework
-│
-└── README.md
-    └── Project documentation
 
 Performance & Architecture
 
@@ -423,11 +438,6 @@ Future improvements may include:
 - Performance optimizations.
 - Additional customization options.
 
-License
-
-No license has been specified yet.
-
-Unless a license is added to this repository, all rights remain with the respective copyright holder. Please contact the project owner before redistributing or modifying the source.
 
 ---
 
