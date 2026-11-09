@@ -53,7 +53,7 @@ JustHub.Themes = {
 	Rainbow = {["Color Hub 1"] = Color3.fromRGB(240, 240, 240), ["Color Hub 2"] = Color3.fromRGB(255, 255, 255), ["Color Stroke"] = Color3.fromRGB(200, 200, 200), ["Color Theme"] = Color3.fromRGB(255, 100, 100), ["Color Text"] = Color3.fromRGB(30, 30, 30), ["Color Dark Text"] = Color3.fromRGB(90, 90, 90)},
 	Midnight = {["Color Hub 1"] = Color3.fromRGB(0, 0, 20), ["Color Hub 2"] = Color3.fromRGB(5, 5, 30), ["Color Stroke"] = Color3.fromRGB(0, 0, 80), ["Color Theme"] = Color3.fromRGB(50, 50, 255), ["Color Text"] = Color3.fromRGB(250, 250, 255), ["Color Dark Text"] = Color3.fromRGB(190, 190, 220)}
 }
-JustHub.Info = {Version = "3.0.3 (Stability Fixes)"}
+JustHub.Info = {Version = "3.0.4 (Visual Polish)"}
 JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Transparency = 0.15, Locked = false}
 JustHub.ConfigData = {}
 JustHub.ControlRegistry = {}
@@ -573,7 +573,7 @@ function SectionMethods:addToggle(options)
     local controlId = makeControlId(self._tabName, self._sectionName, title)
 
     local frame = createInstance("Frame", {
-        Name = title .. "Toggle", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.15, BorderSizePixel = 0
+        Name = title .. "Toggle", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.08, BorderSizePixel = 0
     }, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
     createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame)
@@ -668,7 +668,7 @@ function SectionMethods:addSlider(options)
 
     local frame = createInstance("Frame", {
         Name = title .. "Slider", Size = UDim2.new(1, 0, 0, 48),
-        BackgroundTransparency = 0.15, BorderSizePixel = 0
+        BackgroundTransparency = 0.08, BorderSizePixel = 0
     }, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
     createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame)
@@ -809,7 +809,7 @@ function SectionMethods:addTextBox(options)
     local callback = options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
 
-    local frame = createInstance("Frame", {Name = title .. "TextBox", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = title .. "TextBox", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
     createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame)
     addBorder(frame, "Color Stroke", 1)
@@ -1144,7 +1144,7 @@ function SectionMethods:addColorPicker(options)
     local callback = options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
 
-    local frame = createInstance("Frame", {Name = title .. "ColorPicker", Size = UDim2.new(1, 0, 0, 80), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = title .. "ColorPicker", Size = UDim2.new(1, 0, 0, 80), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
     createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
 
@@ -1218,7 +1218,7 @@ function SectionMethods:addScriptBox(options)
     local callback = options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
 
-    local frame = createInstance("Frame", {Name = title .. "ScriptBox", Size = UDim2.new(1, 0, 0, 96), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = title .. "ScriptBox", Size = UDim2.new(1, 0, 0, 96), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
 
     local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(1, -10, 0, 20), Position = UDim2.new(0, 10, 0, 4), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
@@ -1266,7 +1266,7 @@ function SectionMethods:addBind(options)
         [Enum.KeyCode.Backspace] = true, [Enum.KeyCode.Return] = true, [Enum.KeyCode.Unknown] = true
     }
 
-    local frame = createInstance("Frame", {Name = title .. "BindControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = title .. "BindControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
 
     local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(0.6, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
@@ -1360,7 +1360,7 @@ function SectionMethods:addButton(options)
     local btnText  = options.ButtonText or "Click"
     local callback = options.Callback or function() end
 
-    local frame = createInstance("Frame", {Name = title .. "ButtonControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = title .. "ButtonControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
 
     local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(0.6, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
@@ -1387,7 +1387,7 @@ function SectionMethods:addButton(options)
 end
 
 function SectionMethods:addConfigManager()
-    local frame = createInstance("Frame", {Name = "ConfigManager", Size = UDim2.new(1, 0, 0, 105), BackgroundTransparency = 0.15, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = "ConfigManager", Size = UDim2.new(1, 0, 0, 105), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
 
     local inputBox = createInstance("TextBox", {Text = "DefaultConfig", Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 10), Font = Enum.Font.Gotham, TextSize = 13, ClearTextOnFocus = false, PlaceholderText = "Config Name..."}, frame)
@@ -1451,16 +1451,13 @@ function JustHub:CreateWindow(options)
     applyTheme(mainFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, mainFrame)
     local mainBorder = addBorder(mainFrame, "Color Stroke", 1); registerChroma(mainBorder, "Color", "Color Stroke")
 
-    local topBar = createInstance("Frame", {Name = "TopBar", Size = UDim2.new(1, 0, 0, 45), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    local topBar = createInstance("Frame", {Name = "TopBar", Size = UDim2.new(1, 0, 0, 52), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
 
-    local titleLabel = createInstance("TextLabel", {Name = "TitleLabel", Text = winName, Size = UDim2.new(0.5, 0, 1, 0), Position = UDim2.new(0, 20, 0, -5), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, topBar)
+    local titleLabel = createInstance("TextLabel", {Name = "TitleLabel", Text = winName, Size = UDim2.new(0.62, 0, 0, 22), Position = UDim2.new(0, 20, 0, 4), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, topBar)
     applyTheme(titleLabel, "TextColor3", "Color Text")
 
-    local subtitleLabel = createInstance("TextLabel", {Name = "SubtitleLabel", Text = subTitle, Size = UDim2.new(0.5, 0, 1, 0), Position = UDim2.new(0, 20, 0, 10), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, topBar)
+    local subtitleLabel = createInstance("TextLabel", {Name = "SubtitleLabel", Text = subTitle, Size = UDim2.new(0.62, 0, 0, 15), Position = UDim2.new(0, 20, 0, 27), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, topBar)
     applyTheme(subtitleLabel, "TextColor3", "Color Dark Text")
-
-    local watermark = createInstance("TextLabel", {Name = "Watermark", Text = "JustHub | " .. player.DisplayName, Size = UDim2.new(0, 200, 0, 18), Position = UDim2.new(0, 10, 0, 2), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 10, TextTransparency = 0.5, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, mainFrame)
-    applyTheme(watermark, "TextColor3", "Color Dark Text")
 
     local btnContainer = createInstance("Frame", {Name = "ButtonContainer", Size = UDim2.new(0, 100, 1, 0), Position = UDim2.new(1, -15, 0, 0), AnchorPoint = Vector2.new(1, 0), BackgroundTransparency = 1, ZIndex = 2}, topBar)
     createInstance("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Right, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder}, btnContainer)
@@ -1479,10 +1476,10 @@ function JustHub:CreateWindow(options)
     local lockBtn = createWinBtn("LockBtn", "Color Dark Text", 4, "🔒")
     applyTheme(lockBtn, "TextColor3", "Color Text")
 
-    local headerSep = createInstance("Frame", {Size = UDim2.new(1, -40, 0, 1), Position = UDim2.new(0, 20, 0, 44), BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    local headerSep = createInstance("Frame", {Size = UDim2.new(1, -40, 0, 1), Position = UDim2.new(0, 20, 0, 52), BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
     applyTheme(headerSep, "BackgroundColor3", "Color Stroke")
 
-    local profileFrame = createInstance("Frame", {Name = "ProfileFrame", Size = UDim2.new(0, JustHub.Save.TabSize, 0, 50), Position = UDim2.new(0, 20, 0, 55), BackgroundTransparency = 1, ZIndex = 2}, mainFrame)
+    local profileFrame = createInstance("Frame", {Name = "ProfileFrame", Size = UDim2.new(0, JustHub.Save.TabSize, 0, 46), Position = UDim2.new(0, 20, 0, 62), BackgroundTransparency = 1, ZIndex = 2}, mainFrame)
     local avatarImg = createInstance("ImageLabel", {Size = UDim2.new(0, 36, 0, 36), Position = UDim2.new(0, 0, 0.5, -18), BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 2}, profileFrame)
     applyTheme(avatarImg, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, avatarImg)
     pcall(function() avatarImg.Image = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end)
@@ -1490,20 +1487,24 @@ function JustHub:CreateWindow(options)
     local profileName = createInstance("TextLabel", {Text = player.DisplayName, Size = UDim2.new(1, -46, 1, 0), Position = UDim2.new(0, 46, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 2}, profileFrame)
     applyTheme(profileName, "TextColor3", "Color Text")
 
-    local sidebar = createInstance("Frame", {Name = "Sidebar", Size = UDim2.new(0, JustHub.Save.TabSize, 1, -135), Position = UDim2.new(0, 20, 0, 115), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    local sidebar = createInstance("Frame", {Name = "Sidebar", Size = UDim2.new(0, JustHub.Save.TabSize, 1, -142), Position = UDim2.new(0, 20, 0, 118), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
     createInstance("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6)}, sidebar)
 
-    local contentContainer = createInstance("Frame", {Name = "ContentContainer", Size = UDim2.new(1, -(JustHub.Save.TabSize + 50), 1, -75), Position = UDim2.new(0, JustHub.Save.TabSize + 30, 0, 55), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    local contentContainer = createInstance("Frame", {Name = "ContentContainer", Size = UDim2.new(1, -(JustHub.Save.TabSize + 50), 1, -82), Position = UDim2.new(0, JustHub.Save.TabSize + 30, 0, 62), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
 
-    local searchFrame = createInstance("Frame", {Name = "SearchFrame", Size = UDim2.new(1, 0, 0, 28), Position = UDim2.new(0, 0, 0, -30), BackgroundTransparency = 0.15, BorderSizePixel = 0, ZIndex = 2}, contentContainer)
+    local searchFrame = createInstance("Frame", {Name = "SearchFrame", Size = UDim2.new(1, 0, 0, 32), Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0.08, BorderSizePixel = 0, ZIndex = 2}, contentContainer)
     applyTheme(searchFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, searchFrame); addBorder(searchFrame, "Color Stroke", 1)
 
-    local searchBox = createInstance("TextBox", {Size = UDim2.new(1, -24, 1, 0), Position = UDim2.new(0, 12, 0, 0), Font = Enum.Font.Gotham, TextSize = 12, PlaceholderText = "Search controls...", ClearTextOnFocus = false, BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3}, searchFrame)
+    local searchIcon = createInstance("ImageLabel", {Name = "SearchIcon", Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(0, 11, 0.5, -7), BackgroundTransparency = 1, Image = JustHub.Icons.search, ImageTransparency = 0.15, ZIndex = 3}, searchFrame)
+    applyTheme(searchIcon, "ImageColor3", "Color Dark Text")
+    local searchBox = createInstance("TextBox", {Size = UDim2.new(1, -42, 1, 0), Position = UDim2.new(0, 34, 0, 0), Font = Enum.Font.Gotham, TextSize = 12, PlaceholderText = "Search controls...", ClearTextOnFocus = false, BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3}, searchFrame)
     applyTheme(searchBox, "TextColor3", "Color Text"); applyTheme(searchBox, "PlaceholderColor3", "Color Dark Text")
 
-    local tabsContainer = createInstance("Frame", {Name = "TabsContainer", Size = UDim2.new(1, 0, 1, -34), Position = UDim2.new(0, 0, 0, 30), BackgroundTransparency = 1, ZIndex = 2}, contentContainer)
+    local tabsContainer = createInstance("Frame", {Name = "TabsContainer", Size = UDim2.new(1, 0, 1, -40), Position = UDim2.new(0, 0, 0, 38), BackgroundTransparency = 1, ZIndex = 2}, contentContainer)
 
     local footer = createInstance("Frame", {Name = "Footer", Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -20), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    local watermark = createInstance("TextLabel", {Name = "Watermark", Text = "JustHub  •  " .. player.DisplayName, Size = UDim2.new(0, 220, 1, 0), Position = UDim2.new(0, 20, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 10, TextTransparency = 0.2, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, footer)
+    applyTheme(watermark, "TextColor3", "Color Dark Text")
     local fpsLabel = createInstance("TextLabel", {Name = "FPSLabel", Text = "FPS: --", Size = UDim2.new(0, 100, 1, 0), Position = UDim2.new(1, -20, 0, 0), AnchorPoint = Vector2.new(1, 0), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 2}, footer)
     applyTheme(fpsLabel, "TextColor3", "Color Dark Text")
 
@@ -1697,13 +1698,13 @@ function JustHub:CreateWindow(options)
 
         function tabObj:addSection(sectionName)
             sectionName = sectionName or "Section"
-            local secFrame = createInstance("Frame", {Name = sectionName, Size = UDim2.new(1, -4, 0, 0), BackgroundTransparency = 0.4, AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 2}, tabContent)
+            local secFrame = createInstance("Frame", {Name = sectionName, Size = UDim2.new(1, -4, 0, 0), BackgroundTransparency = 0.22, AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 2}, tabContent)
             applyTheme(secFrame, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, secFrame); addBorder(secFrame, "Color Stroke", 1)
 
-            local secTitle = createInstance("TextLabel", {Name = "SectionTitle", Text = "  " .. sectionName, Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, secFrame)
+            local secTitle = createInstance("TextLabel", {Name = "SectionTitle", Text = "  " .. sectionName, Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 1, Font = Enum.Font.GothamSemibold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, secFrame)
             applyTheme(secTitle, "TextColor3", "Color Text")
 
-            local secContent = createInstance("Frame", {Name = "SectionContent", Size = UDim2.new(1, 0, 0, 0), Position = UDim2.new(0, 0, 0, 34), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 2}, secFrame)
+            local secContent = createInstance("Frame", {Name = "SectionContent", Size = UDim2.new(1, 0, 0, 0), Position = UDim2.new(0, 0, 0, 36), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 2}, secFrame)
             createInstance("UIListLayout", {FillDirection = Enum.FillDirection.Vertical, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center}, secContent)
             createInstance("UIPadding", {PaddingBottom = UDim.new(0, 10), PaddingTop = UDim.new(0, 2), PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10)}, secContent)
 
