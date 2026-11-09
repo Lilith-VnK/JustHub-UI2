@@ -39,23 +39,23 @@ Navigation System
 
 UI Components
 
-JustHub provides several built-in UI components:
+JustHub provides a collection of built-in UI components designed to simplify interface development and provide consistent user interactions.
 
 Component| Description
-Toggle| Boolean on/off control
-Slider| Adjustable numerical values
-TextBox| Text input
-Dropdown| Single-selection menu
-MultiDropdown| Multiple-selection menu
-Button| Callback-based action
-Label| Informational text
-ColorPicker| Color selection
-Keybind| Keyboard binding
-ScriptBox| Script text input
-ConfigManager| Configuration management
-ChromaToggle| Rainbow color effect
+Toggle| Interactive boolean control for enabling or disabling features.
+Slider| Adjustable numerical input with customizable minimum, maximum, and default values.
+TextBox| Editable text input for entering custom user-defined values.
+Dropdown| Selection menu that allows users to choose a single option from a predefined list.
+MultiDropdown| Multi-selection menu that allows users to select multiple options simultaneously.
+Button| Interactive action element that executes a callback when clicked.
+Label| Static text element for displaying information, descriptions, and section content.
+ColorPicker| Color selection component for customizing interface or feature colors.
+Keybind| Keyboard binding component for assigning and handling user-defined key inputs.
+ScriptBox| Text editor component for entering and managing script content.
+ConfigManager| Configuration management interface for saving, loading, and deleting configurations.
+ChromaToggle| Control for enabling or disabling dynamic rainbow color effects.
 
-Theme System
+Each component supports its own configuration and callback handling, allowing developers to integrate interactive controls into their interfaces with minimal setup.
 
 JustHub includes multiple predefined themes.
 
