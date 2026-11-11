@@ -125,10 +125,7 @@ local activeTweens = setmetatable({}, {__mode = "k"})
 local chromaRenderConn = nil
 local surfaceRegistry = setmetatable({}, {__mode = "k"})
 
-local function refreshTransparencyTokens()
-    -- Transparency is kept subtle across nested surfaces. The previous relative
-    -- offsets pushed inner controls close to fully transparent, especially when
-    -- the saved base value was already above the default.
+local function refreshTransparencyTokens().
     local base = math.clamp(tonumber(JustHub.Save.Transparency) or 0.15, 0, 0.85)
     local function derive(offset)
         return math.clamp(base + offset, 0, 0.85)
@@ -258,7 +255,6 @@ local function createInstance(className, props, parent)
     end
     local obj = Instance.new(className)
     if props then for k, v in pairs(props) do obj[k] = v end end
-    -- Make interactive controls explicitly focusable/clickable on mouse and touch.
     if className == "TextButton" then
         if not props or props.Active == nil then obj.Active = true end
         if not props or props.Selectable == nil then obj.Selectable = true end
@@ -1797,9 +1793,6 @@ function JustHub:CreateWindow(options)
         function tabObj:addSection(sectionName)
             sectionName = sectionName or "Section"
 
-            -- Each section owns an independent frame and content container.
-            -- Use explicit layout-driven sizing instead of a nested AutomaticSize.Y
-            -- chain so section height is deterministic and updates when controls resize.
             local secFrame = createInstance("Frame", {
                 Name = sectionName,
                 Size = UDim2.new(1, -4, 0, 48),
@@ -1853,8 +1846,6 @@ function JustHub:CreateWindow(options)
                     return
                 end
 
-                -- UIListLayout.AbsoluteContentSize includes the arranged child
-                -- heights and inter-item padding. UIPadding contributes 2 + 10 px.
                 local contentHeight = math.max(12, sectionLayout.AbsoluteContentSize.Y + 12)
                 secContent.Size = UDim2.new(1, 0, 0, contentHeight)
                 secFrame.Size = UDim2.new(1, -4, 0, 36 + contentHeight)
@@ -1873,7 +1864,6 @@ function JustHub:CreateWindow(options)
             table.insert(tabObj.Sections, secObj)
             setmetatable(secObj, {__index = SectionMethods})
 
-            -- Compute the initial height after the layout has been parented.
             updateSectionSize()
 
             return secObj
