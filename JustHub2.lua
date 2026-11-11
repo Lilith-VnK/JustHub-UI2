@@ -26,6 +26,10 @@ do
 end
 for _, child in ipairs(targetParent:GetChildren()) do
     if child.Name == "JustHub" or child.Name == "JustHubLoadingScreen" or child.Name == "JustHubShowUI" then
+        local cleanupBridge = child:FindFirstChild("__JustHubCleanup")
+        if cleanupBridge and cleanupBridge:IsA("BindableFunction") then
+            pcall(function() cleanupBridge:Invoke() end)
+        end
         pcall(function() child:Destroy() end)
     end
 end
@@ -40,7 +44,7 @@ end
 local JustHub = {}
 
 JustHub.Themes = {
-    Darker   = {["Color Hub 1"] = Color3.fromRGB(15, 15, 20),   ["Color Hub 2"] = Color3.fromRGB(25, 25, 30),   ["Color Stroke"] = Color3.fromRGB(45, 45, 55),   ["Color Theme"] = Color3.fromRGB(100, 255, 150), ["Color Text"] = Color3.fromRGB(240, 240, 245), ["Color Dark Text"] = Color3.fromRGB(160, 160, 170)},
+    Darker   = {["Color Hub 1"] = Color3.fromRGB(18, 24, 34),   ["Color Hub 2"] = Color3.fromRGB(25, 33, 46),   ["Color Stroke"] = Color3.fromRGB(54, 68, 86),   ["Color Theme"] = Color3.fromRGB(82, 211, 165), ["Color Text"] = Color3.fromRGB(239, 245, 250), ["Color Dark Text"] = Color3.fromRGB(171, 185, 201)},
     Dark     = {["Color Hub 1"] = Color3.fromRGB(25, 25, 30),   ["Color Hub 2"] = Color3.fromRGB(35, 35, 40),   ["Color Stroke"] = Color3.fromRGB(60, 60, 70),   ["Color Theme"] = Color3.fromRGB(80, 200, 255),  ["Color Text"] = Color3.fromRGB(245, 245, 250), ["Color Dark Text"] = Color3.fromRGB(170, 170, 180)},
     Purple   = {["Color Hub 1"] = Color3.fromRGB(20, 15, 30),   ["Color Hub 2"] = Color3.fromRGB(30, 25, 40),   ["Color Stroke"] = Color3.fromRGB(50, 40, 65),   ["Color Theme"] = Color3.fromRGB(150, 100, 255), ["Color Text"] = Color3.fromRGB(240, 240, 245), ["Color Dark Text"] = Color3.fromRGB(170, 160, 190)},
     Light    = {["Color Hub 1"] = Color3.fromRGB(210, 210, 215),["Color Hub 2"] = Color3.fromRGB(230, 230, 235),["Color Stroke"] = Color3.fromRGB(180, 180, 190),["Color Theme"] = Color3.fromRGB(0, 140, 255),   ["Color Text"] = Color3.fromRGB(40, 40, 45),    ["Color Dark Text"] = Color3.fromRGB(90, 90, 100)},
@@ -59,8 +63,8 @@ JustHub.Themes = {
     Midnight = {["Color Hub 1"] = Color3.fromRGB(0, 0, 20),     ["Color Hub 2"] = Color3.fromRGB(5, 5, 30),     ["Color Stroke"] = Color3.fromRGB(0, 0, 80),     ["Color Theme"] = Color3.fromRGB(50, 50, 255),   ["Color Text"] = Color3.fromRGB(250, 250, 255), ["Color Dark Text"] = Color3.fromRGB(190, 190, 220)}
 }
 
-JustHub.Info = {Version = "1.2.0"}
-JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Locked = false, Transparency = 0.06}
+JustHub.Info = {Version = "2.0.0"}
+JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Locked = false, Transparency = 0}
 JustHub.ConfigData = {}
 JustHub.ControlRegistry = {}
 JustHub.ControlAliases = {}
@@ -118,7 +122,7 @@ JustHub.DesignTokens = {
         TabTransition = 0.24, PopupTransition = 0.24,
         ToggleTransition = 0.22, NotificationTransition = 0.30,
     },
-    Opacity = {Border = 0.20, MutedIcon = 0.22},
+    Opacity = {Border = 0, MutedIcon = 0},
 }
 
 local activeTweens = setmetatable({}, {__mode = "k"})
@@ -126,30 +130,30 @@ local chromaRenderConn = nil
 local tweenProperty
 
 local TRANSPARENCY_DEFAULTS = {
-    Window = 0.04,
-    Header = 0.05,
-    Navigation = 0.05,
-    Content = 0.03,
-    Secondary = 0.06,
-    Section = 0.06,
-    Control = 0.04,
-    Input = 0.02,
-    Dropdown = 0.03,
-    Button = 0.04,
-    TabActive = 0.04,
-    TabHover = 0.05,
-    TabInactive = 0.07,
-    Popup = 0.02,
-    Notification = 0.03,
-    Floating = 0.05,
-    Overlay = 0.15,
-    Divider = 0.50,
-    Stroke = 0.20,
+    Window = 0,
+    Header = 0,
+    Navigation = 0,
+    Content = 0,
+    Secondary = 0,
+    Section = 0,
+    Control = 0,
+    Input = 0,
+    Dropdown = 0,
+    Button = 0,
+    TabActive = 0,
+    TabHover = 0,
+    TabInactive = 0,
+    Popup = 0,
+    Notification = 0,
+    Floating = 0,
+    Overlay = 0,
+    Divider = 0,
+    Stroke = 0,
     TextPrimary = 0,
     TextSecondary = 0,
-    TextMuted = 0.20,
+    TextMuted = 0,
     Image = 0,
-    ImageMuted = 0.15,
+    ImageMuted = 0,
     CanvasGroup = 0,
 }
 
@@ -184,9 +188,6 @@ local TRANSPARENCY_PROPERTY_DEFAULTS = {
 local TransparencyController = {
     Registry = setmetatable({}, {__mode = "k"}),
     Revision = 0,
-    SettingDefault = 0.06,
-    SettingMinimum = 0,
-    SettingMaximum = 0.14,
 }
 
 local function resolveTransparencyRole(role)
@@ -201,31 +202,13 @@ local function isFiniteNumber(value)
         and value ~= -math.huge
 end
 
-local function normalizeTransparencySetting(value, fallback)
-    local numeric = tonumber(value)
-    if not isFiniteNumber(numeric) then
-        numeric = fallback
-    end
-    if not isFiniteNumber(numeric) then
-        numeric = TransparencyController.SettingDefault
-    end
-    return math.clamp(numeric, TransparencyController.SettingMinimum, TransparencyController.SettingMaximum)
-end
-
 function TransparencyController:Get(role, property)
     local resolvedRole = resolveTransparencyRole(role)
     if not resolvedRole then return nil end
     property = property or "BackgroundTransparency"
     local propertyRoles = TRANSPARENCY_PROPERTY_DEFAULTS[property]
     if not propertyRoles or not propertyRoles[resolvedRole] then return nil end
-    local baseline = TRANSPARENCY_DEFAULTS[resolvedRole]
-    if not isFiniteNumber(baseline) then return nil end
-    if property == "BackgroundTransparency" and resolvedRole ~= "Divider" then
-        local setting = normalizeTransparencySetting(JustHub.Save.Transparency, self.SettingDefault)
-        local adjustment = setting - self.SettingDefault
-        return math.clamp(baseline + adjustment, 0, 0.18)
-    end
-    return math.clamp(baseline, 0, 1)
+    return 0
 end
 
 function TransparencyController:_isPropertyCompatible(obj, property)
@@ -249,26 +232,25 @@ end
 function TransparencyController:Register(obj, role, property)
     property = property or "BackgroundTransparency"
     local resolvedRole = resolveTransparencyRole(role)
-    local tokenValue = self:Get(resolvedRole, property)
-    if not obj or not resolvedRole or tokenValue == nil then return false end
+    if not obj or not resolvedRole or self:Get(resolvedRole, property) == nil then return false end
     if not self:_isPropertyCompatible(obj, property) then return false end
     local parentOk, parent = pcall(function() return obj.Parent end)
     if not parentOk or parent == nil then return false end
+
     local record = self.Registry[obj]
     if not record then
         record = {}
         self.Registry[obj] = record
     end
     record[property] = {Role = resolvedRole}
+
     local ok, err = pcall(function()
-        if obj[property] ~= tokenValue then
-            obj[property] = tokenValue
-        end
+        if obj[property] ~= 0 then obj[property] = 0 end
     end)
     if not ok then
         record[property] = nil
         if not next(record) then self.Registry[obj] = nil end
-        warn("[JustHub] Failed to register transparency for " .. tostring(obj) .. ": " .. tostring(err))
+        warn("[JustHub] Failed to enforce opaque property on " .. tostring(obj) .. ": " .. tostring(err))
         return false
     end
     return true
@@ -289,88 +271,34 @@ end
 function TransparencyController:Refresh()
     self.Revision = self.Revision + 1
     for obj, properties in pairs(self.Registry) do
-        local alive, parent = pcall(function()
-            return obj.Parent
-        end)
+        local alive, parent = pcall(function() return obj.Parent end)
         if not alive or parent == nil then
             self.Registry[obj] = nil
         else
-            local tweenRecord = activeTweens[obj]
-            if tweenRecord then
-                local filteredGoal = {}
-                local overlapsTransparency = false
-                for tweenPropertyName, targetValue in pairs(tweenRecord.Goal) do
-                    if properties[tweenPropertyName] then
-                        overlapsTransparency = true
-                    else
-                        filteredGoal[tweenPropertyName] = targetValue
-                    end
-                end
-                if overlapsTransparency then
-                    activeTweens[obj] = nil
-                    pcall(function() tweenRecord.Tween:Cancel() end)
-                    if next(filteredGoal) then
-                        local remaining = math.max(0, tweenRecord.Duration - (os.clock() - tweenRecord.StartedAt))
-                        if remaining > 0 then
-                            tweenProperty(
-                                obj,
-                                filteredGoal,
-                                remaining,
-                                tweenRecord.EasingStyle,
-                                tweenRecord.EasingDirection
-                            )
-                        else
-                            for tweenPropertyName, targetValue in pairs(filteredGoal) do
-                                pcall(function() obj[tweenPropertyName] = targetValue end)
-                            end
-                        end
-                    end
-                end
+            for property in pairs(properties) do
+                local ok = pcall(function()
+                    if obj[property] ~= 0 then obj[property] = 0 end
+                end)
+                if not ok then properties[property] = nil end
             end
-            for property, record in pairs(properties) do
-                local value = record and self:Get(record.Role, property)
-                if value ~= nil then
-                    pcall(function()
-                        if obj[property] ~= value then
-                            obj[property] = value
-                        end
-                    end)
-                else
-                    properties[property] = nil
-                end
-            end
-            if not next(properties) then
-                self.Registry[obj] = nil
-            end
+            if not next(properties) then self.Registry[obj] = nil end
         end
     end
 end
 
 local function refreshTransparencyTokens()
-    JustHub.Save.Transparency = normalizeTransparencySetting(
-        JustHub.Save.Transparency,
-        TransparencyController.SettingDefault
-    )
+    JustHub.Save.Transparency = 0
     local tokens = JustHub.DesignTokens.Transparency
-    for role, baseline in pairs(TRANSPARENCY_DEFAULTS) do
-        tokens[role] = TransparencyController:Get(role, TRANSPARENCY_PROPERTY_DEFAULTS.BackgroundTransparency[role]
-            and "BackgroundTransparency"
-            or (TRANSPARENCY_PROPERTY_DEFAULTS.TextTransparency[role] and "TextTransparency"
-            or (TRANSPARENCY_PROPERTY_DEFAULTS.ImageTransparency[role] and "ImageTransparency"
-            or (TRANSPARENCY_PROPERTY_DEFAULTS.Transparency[role] and "Transparency" or "GroupTransparency")))) or baseline
-    end
-    for alias, role in pairs(TRANSPARENCY_ALIASES) do
-        tokens[alias] = tokens[role]
-    end
-    JustHub.DesignTokens.Opacity.Border = tokens.Stroke
+    for role in pairs(TRANSPARENCY_DEFAULTS) do tokens[role] = 0 end
+    for alias, role in pairs(TRANSPARENCY_ALIASES) do tokens[alias] = tokens[role] end
+    JustHub.DesignTokens.Opacity.Border = 0
+    JustHub.DesignTokens.Opacity.MutedIcon = 0
 end
 
 refreshTransparencyTokens()
 
-local function surfaceTransparency(kind)
-    return TransparencyController:Get(kind, "BackgroundTransparency")
-        or JustHub.DesignTokens.Transparency.Control
-        or TRANSPARENCY_DEFAULTS.Control
+local function surfaceTransparency(_)
+    return 0
 end
 
 local function registerTransparency(obj, role, property)
@@ -476,6 +404,21 @@ local function trackScreenGui(sg)
         pcall(function() sg:Destroy() end)
         return nil
     end
+
+    local bridgeOk, bridge = pcall(function()
+        local cleanup = Instance.new("BindableFunction")
+        cleanup.Name = "__JustHubCleanup"
+        cleanup.OnInvoke = function()
+            JustHub:Destroy()
+            return true
+        end
+        cleanup.Parent = sg
+        return cleanup
+    end)
+    if not bridgeOk then
+        warn("[JustHub] Runtime cleanup bridge unavailable: " .. tostring(bridge))
+    end
+
     table.insert(JustHub.ScreenGuis, sg)
     return sg
 end
@@ -536,31 +479,72 @@ local function connectOnce(signal, callback)
 end
 
 tweenProperty = function(guiObject, goal, time, easingStyle, easingDirection)
-    if not guiObject or not guiObject.Parent then return nil end
-    local previous = activeTweens[guiObject]
-    if previous then
-        activeTweens[guiObject] = nil
-        pcall(function() previous.Tween:Cancel() end)
+    if not guiObject or type(goal) ~= "table" then return nil end
+    local parentOk, parent = pcall(function() return guiObject.Parent end)
+    if not parentOk or parent == nil then return nil end
+
+    local bucket = activeTweens[guiObject]
+    if not bucket then
+        bucket = {}
+        activeTweens[guiObject] = bucket
     end
-    local duration = time or JustHub.DesignTokens.Animation.General
+
+    local cancelled = {}
+    for propertyName in pairs(goal) do
+        local record = bucket[propertyName]
+        if record then cancelled[record] = true end
+    end
+    for record in pairs(cancelled) do
+        pcall(function() record.Tween:Cancel() end)
+        if record.Connection then pcall(function() record.Connection:Disconnect() end) end
+        for propertyName, current in pairs(bucket) do
+            if current == record then bucket[propertyName] = nil end
+        end
+    end
+
+    local duration = tonumber(time) or JustHub.DesignTokens.Animation.General
+    if not isFiniteNumber(duration) then duration = JustHub.DesignTokens.Animation.General end
+    duration = math.max(0, duration)
     local style = easingStyle or Enum.EasingStyle.Quad
     local direction = easingDirection or Enum.EasingDirection.Out
-    local ti = TweenInfo.new(duration, style, direction)
-    local tween = TweenService:Create(guiObject, ti, goal)
-    local record = {
-        Tween = tween,
-        Goal = shallowClone(goal),
-        Duration = duration,
-        EasingStyle = style,
-        EasingDirection = direction,
-        StartedAt = os.clock(),
-    }
-    activeTweens[guiObject] = record
-    connectOnce(tween.Completed, function()
-        if activeTweens[guiObject] == record then activeTweens[guiObject] = nil end
+    local tweenInfo = TweenInfo.new(duration, style, direction)
+    local created, tweenOrError = pcall(function()
+        return TweenService:Create(guiObject, tweenInfo, goal)
     end)
-    tween:Play()
-    return tween
+    if not created then
+        warn("[JustHub] Tween creation failed: " .. tostring(tweenOrError))
+        return nil
+    end
+
+    local record = {
+        Tween = tweenOrError,
+    }
+    for propertyName in pairs(goal) do bucket[propertyName] = record end
+
+    record.Connection = record.Tween.Completed:Connect(function()
+        local currentBucket = activeTweens[guiObject]
+        if currentBucket then
+            for propertyName, current in pairs(currentBucket) do
+                if current == record then currentBucket[propertyName] = nil end
+            end
+            if not next(currentBucket) then activeTweens[guiObject] = nil end
+        end
+        if record.Connection then
+            record.Connection:Disconnect()
+            record.Connection = nil
+        end
+    end)
+
+    local played, playError = pcall(function() record.Tween:Play() end)
+    if not played then
+        for propertyName, current in pairs(bucket) do
+            if current == record then bucket[propertyName] = nil end
+        end
+        if not next(bucket) then activeTweens[guiObject] = nil end
+        warn("[JustHub] Tween playback failed: " .. tostring(playError))
+        return nil
+    end
+    return record.Tween
 end
 
 local requiredThemeKeys = {
@@ -607,12 +591,23 @@ end
 local function updateChromaConn()
     if JustHub.ChromaEnabled and next(JustHub.ChromaObjects) and isAlive() then
         if not chromaRenderConn then
-            chromaRenderConn = RunService.Heartbeat:Connect(function()
+            local elapsed = 0
+            chromaRenderConn = RunService.Heartbeat:Connect(function(deltaTime)
                 if not isAlive() then return end
-                local color = Color3.fromHSV((tick() % 5) / 5, 1, 1)
+                elapsed = elapsed + deltaTime
+                if elapsed < 1 / 20 then return end
+                elapsed = 0
+                local color = Color3.fromHSV((os.clock() % 5) / 5, 0.82, 1)
                 for obj, props in pairs(JustHub.ChromaObjects) do
-                    for prop, _ in pairs(props) do
-                        obj[prop] = color
+                    local parentOk, parent = pcall(function() return obj.Parent end)
+                    if not parentOk or parent == nil then
+                        JustHub.ChromaObjects[obj] = nil
+                    else
+                        for prop in pairs(props) do
+                            local ok = pcall(function() obj[prop] = color end)
+                            if not ok then props[prop] = nil end
+                        end
+                        if not next(props) then JustHub.ChromaObjects[obj] = nil end
                     end
                 end
             end)
@@ -624,9 +619,11 @@ local function updateChromaConn()
 end
 
 local function registerChroma(obj, property, themeKey)
+    if not obj or type(property) ~= "string" then return false end
     if not JustHub.ChromaObjects[obj] then JustHub.ChromaObjects[obj] = {} end
     JustHub.ChromaObjects[obj][property] = themeKey or true
     updateChromaConn()
+    return true
 end
 
 function JustHub:UnregisterChroma(obj, property)
@@ -642,14 +639,14 @@ function JustHub:UnregisterChroma(obj, property)
 end
 
 function JustHub:ToggleChroma(state)
-    self.ChromaEnabled = state
+    self.ChromaEnabled = state == true
     updateChromaConn()
-    if not state then
+    if not self.ChromaEnabled then
         local theme = getCurrentTheme(self.Save.Theme)
         for obj, props in pairs(self.ChromaObjects) do
             for prop, themeKey in pairs(props) do
                 if type(themeKey) == "string" and theme[themeKey] then
-                    obj[prop] = theme[themeKey]
+                    pcall(function() obj[prop] = theme[themeKey] end)
                 end
             end
         end
@@ -668,14 +665,64 @@ local function makeControlId(tab, section, name)
 end
 
 local function normalizeStringArray(value)
-    local normalized = {}
+    local normalized, seen = {}, {}
     if type(value) == "table" then
         for _, item in ipairs(value) do
-            if type(item) == "string" then table.insert(normalized, item) end
+            if type(item) == "string" and not seen[item] then
+                seen[item] = true
+                table.insert(normalized, item)
+            end
         end
     end
     return normalized
 end
+
+local function cloneValue(value, seen)
+    if type(value) ~= "table" then return value end
+    seen = seen or {}
+    if seen[value] then return seen[value] end
+    local copy = {}
+    seen[value] = copy
+    for key, item in pairs(value) do
+        copy[cloneValue(key, seen)] = cloneValue(item, seen)
+    end
+    return copy
+end
+
+local function sendCoreNotification(title, message, duration)
+    local ok, err = pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = tostring(title or "JustHub"),
+            Text = tostring(message or ""),
+            Duration = tonumber(duration) or 4,
+        })
+    end)
+    if not ok then
+        warn("[JustHub] Core notification unavailable: " .. tostring(err))
+    end
+    return ok
+end
+
+local function normalizeConfigFileName(fileName)
+    local normalized = tostring(fileName or "")
+    if normalized == "" then return "" end
+    if normalized:lower():sub(-5) ~= ".json" then normalized = normalized .. ".json" end
+    return normalized
+end
+
+local function isSafeConfigFileName(fileName)
+    return type(fileName) == "string"
+        and fileName ~= ""
+        and fileName ~= "."
+        and fileName ~= ".."
+        and #fileName <= 128
+        and not fileName:find("/", 1, true)
+        and not fileName:find("\\", 1, true)
+        and not fileName:find(":", 1, true)
+        and not fileName:find("..", 1, true)
+        and not fileName:find("\0", 1, true)
+end
+
 
 local function createControl(opts)
     local ctrl = {
@@ -711,7 +758,9 @@ local function createControl(opts)
             end
         end
         if not applyOpts.skipCallback then
-            task.spawn(fireCallback, newVal)
+            task.spawn(function()
+                if not JustHub._destroyed then fireCallback(newVal) end
+            end)
         end
         if not applyOpts.skipHistory and not JustHub._isApplyingConfig and oldVal ~= newVal then
             JustHub:AddUndo(ctrl.id, oldVal, newVal)
@@ -732,7 +781,7 @@ local function createControl(opts)
 end
 
 function JustHub:RegisterControl(id, setter, meta)
-    meta = meta or {}
+    meta = type(meta) == "table" and meta or {}
     if type(id) ~= "string" or id == "" or type(setter) ~= "function" then
         warn("[JustHub] Invalid control registration")
         return false
@@ -765,17 +814,24 @@ function JustHub:RegisterControl(id, setter, meta)
     return true
 end
 
-function JustHub:SetUserRole(roleName) self.UserRole = roleName end
-function JustHub:CheckRole(requiredRole) return self.UserRole == requiredRole end
+function JustHub:SetUserRole(roleName)
+    if type(roleName) ~= "string" or roleName == "" then return false end
+    self.UserRole = roleName
+    return true
+end
+
+function JustHub:CheckRole(requiredRole)
+    return type(requiredRole) == "string" and self.UserRole == requiredRole
+end
 
 function JustHub:AddUndo(controlKey, oldValue, newValue)
     if self._isApplyingConfig then return end
     if oldValue == newValue then return end
     local last = self.UndoStack[#self.UndoStack]
     if last and last.key == controlKey and last.new == oldValue then
-        last.new = newValue
+        last.new = cloneValue(newValue)
     else
-        table.insert(self.UndoStack, {key = controlKey, old = oldValue, new = newValue})
+        table.insert(self.UndoStack, {key = controlKey, old = cloneValue(oldValue), new = cloneValue(newValue)})
         if #self.UndoStack > self._historyMax then table.remove(self.UndoStack, 1) end
     end
     table.clear(self.RedoStack)
@@ -864,15 +920,23 @@ function JustHub:RegisterTheme(name, definition)
 end
 
 function JustHub:PlaySound(name)
-    if self.Sounds[name] and self.Sounds[name] ~= 0 then
+    if type(name) == "string" and self.Sounds[name] and self.Sounds[name] ~= 0 then
         local s = Instance.new("Sound")
         s.SoundId = "rbxassetid://" .. tostring(self.Sounds[name])
         s.Volume = 1; s.PlayOnRemove = true; s.Parent = workspace; s:Destroy()
     end
 end
 
-function JustHub:SetLanguage(lang) self.CurrentLang = lang end
-function JustHub:LocalizeText(textKey) return (self.Localization[self.CurrentLang] and self.Localization[self.CurrentLang][textKey]) or textKey end
+function JustHub:SetLanguage(lang)
+    if type(lang) ~= "string" or lang == "" then return false end
+    self.CurrentLang = lang
+    return true
+end
+
+function JustHub:LocalizeText(textKey)
+    local key = tostring(textKey or "")
+    return (self.Localization[self.CurrentLang] and self.Localization[self.CurrentLang][key]) or key
+end
 
 local function createDropdownScaffolding(parent, title, defaultText)
     local frame = createInstance("Frame", {
@@ -954,10 +1018,10 @@ function SectionMethods:addChromaToggle()
 end
 
 function SectionMethods:addToggle(options)
-    options = options or {}
-    local title     = options.Name or "Toggle"
+    options = type(options) == "table" and options or {}
+    local title     = tostring(options.Name or "Toggle")
     local default   = options.Default == true
-    local callback  = options.Callback or function() end
+    local callback  = type(options.Callback) == "function" and options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
     local frame = createInstance("Frame", {
         Name = title .. "Toggle", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0
@@ -1010,15 +1074,18 @@ function SectionMethods:addToggle(options)
 end
 
 function SectionMethods:addSlider(options)
-    options = options or {}
-    local title    = options.Name or "Slider"
-    local minVal   = tonumber(options.Min) or 0
-    local maxVal   = tonumber(options.Max) or 100
-    local step     = tonumber(options.Step or options.Float) or 1
-    local default  = tonumber(options.Default) or minVal
-    local callback = options.Callback or function() end
+    options = type(options) == "table" and options or {}
+    local title    = tostring(options.Name or "Slider")
+    local minVal   = tonumber(options.Min)
+    local maxVal   = tonumber(options.Max)
+    local step     = tonumber(options.Step or options.Float)
+    local default  = tonumber(options.Default)
+    local callback = type(options.Callback) == "function" and options.Callback or function() end
+    if not isFiniteNumber(minVal) then minVal = 0 end
+    if not isFiniteNumber(maxVal) then maxVal = 100 end
     if maxVal <= minVal then maxVal = minVal + 1 end
-    if step <= 0 then step = 1 end
+    if not isFiniteNumber(step) or step <= 0 then step = 1 end
+    if not isFiniteNumber(default) then default = minVal end
     default = math.clamp(default, minVal, maxVal)
     local controlId = makeControlId(self._tabName, self._sectionName, title)
     local function decimalPlaces(value)
@@ -1145,7 +1212,7 @@ end
 function SectionMethods:addLabel(options)
     options = type(options) == "string" and {Text = options} or options or {}
     local txt = tostring(options.Text or options.Name or "Label")
-    local align = options.Align or "Left"
+    local align = tostring(options.Align or "Left")
     local frame = createInstance("Frame", {Name = txt, Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1}, self.Content)
     local labelObj = createInstance("TextLabel", {
         Name = "LabelText", Text = txt, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
@@ -1158,14 +1225,14 @@ function SectionMethods:addLabel(options)
     if align == "Left" then
         createInstance("UIPadding", {PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10)}, labelObj)
     end
-    return {SetText = function(self, newText) labelObj.Text = newText end}
+    return {SetText = function(self, newText) labelObj.Text = tostring(newText or "") end}
 end
 
 function SectionMethods:addTextBox(options)
-    options = options or {}
-    local title    = options.Name or "TextBox"
+    options = type(options) == "table" and options or {}
+    local title    = tostring(options.Name or "TextBox")
     local default  = type(options.Default) == "string" and options.Default or ""
-    local callback = options.Callback or function() end
+    local callback = type(options.Callback) == "function" and options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
     local frame = createInstance("Frame", {
         Name = title .. "TextBox", Size = UDim2.new(1, 0, 0, 44),
@@ -1212,11 +1279,11 @@ function SectionMethods:addTextBox(options)
 end
 
 function SectionMethods:addDropdown(options)
-    options = options or {}
-    local title    = options.Name or "Dropdown"
+    options = type(options) == "table" and options or {}
+    local title    = tostring(options.Name or "Dropdown")
     local default  = type(options.Default) == "string" and options.Default or ""
     local presets  = normalizeStringArray(options.Presets)
-    local callback = options.Callback or function() end
+    local callback = type(options.Callback) == "function" and options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
     local scaffold = createDropdownScaffolding(self.Content, title, default ~= "" and default or "Select...")
     local frame, headerBtn, selectedLabel, arrow, body = scaffold.Frame, scaffold.Header, scaffold.SelectedLabel, scaffold.Arrow, scaffold.Body
@@ -1248,7 +1315,10 @@ function SectionMethods:addDropdown(options)
         searchBox.Text = ""
     end
     local function clearItems()
-        for _, conn in ipairs(itemConnections) do pcall(function() conn:Disconnect() end) end
+        for _, conn in ipairs(itemConnections) do
+            removeConnection(conn)
+            pcall(function() conn:Disconnect() end)
+        end
         table.clear(itemConnections)
         for _, btn in ipairs(scroll:GetChildren()) do
             if btn:IsA("TextButton") then btn:Destroy() end
@@ -1265,13 +1335,13 @@ function SectionMethods:addDropdown(options)
         applyTheme(btn, "TextColor3", data.IsPreset and "Color Theme" or "Color Text")
         createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, btn)
         if data.IsPreset then registerChroma(btn, "TextColor3", "Color Theme") end
-        table.insert(itemConnections, btn.MouseEnter:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, 0.15) end))
-        table.insert(itemConnections, btn.MouseLeave:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.15) end))
-        table.insert(itemConnections, btn.Activated:Connect(function()
+        table.insert(itemConnections, addConnection(btn.MouseEnter:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, 0.15) end)))
+        table.insert(itemConnections, addConnection(btn.MouseLeave:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.15) end)))
+        table.insert(itemConnections, addConnection(btn.Activated:Connect(function()
             selectedLabel.Text = data.Name
             ctrl.setValue(data.Value)
             closeDropdown()
-        end))
+        end)))
         table.insert(itemCache, {Name = data.Name, Value = data.Value, Button = btn, IsPreset = data.IsPreset})
     end
     local function populateCache(newList)
@@ -1311,15 +1381,29 @@ function SectionMethods:addDropdown(options)
         else closeDropdown() end
     end))
     JustHub:RegisterControl(controlId, function(v) ctrl.setValue(v) end, {getValue = ctrl.getValue, shortName = title, defaultValue = default, tab = self._tabName, section = self._sectionName})
-    return {Refresh = function(self, newList) populateCache(newList); renderItems(searchBox.Text) end, Clear = function(self) clearItems(); selectedLabel.Text = "Select..."; ctrl.setValue(""); closeDropdown() end, GetValue = function() return ctrl.getValue() end}
+    return {
+        Refresh = function(self, newList)
+            populateCache(newList)
+            local currentValue = ctrl.getValue()
+            selectedLabel.Text = currentValue ~= "" and getDisplayName(currentValue) or "Select..."
+            renderItems(searchBox.Text)
+        end,
+        Clear = function(self)
+            clearItems()
+            selectedLabel.Text = "Select..."
+            ctrl.setValue("")
+            closeDropdown()
+        end,
+        GetValue = function() return ctrl.getValue() end,
+    }
 end
 
 function SectionMethods:addMultiDropdown(options)
-    options = options or {}
-    local title    = options.Name or "Multi Dropdown"
+    options = type(options) == "table" and options or {}
+    local title    = tostring(options.Name or "Multi Dropdown")
     local default  = normalizeStringArray(options.Default)
     local presets  = normalizeStringArray(options.Presets)
-    local callback = options.Callback or function() end
+    local callback = type(options.Callback) == "function" and options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
     local defaultLabel = #default > 0 and table.concat(default, ", ") or "Select..."
     local scaffold = createDropdownScaffolding(self.Content, title, defaultLabel)
@@ -1364,7 +1448,10 @@ function SectionMethods:addMultiDropdown(options)
         searchBox.Text = ""
     end
     local function clearItems()
-        for _, conn in ipairs(itemConnections) do pcall(function() conn:Disconnect() end) end
+        for _, conn in ipairs(itemConnections) do
+            removeConnection(conn)
+            pcall(function() conn:Disconnect() end)
+        end
         table.clear(itemConnections)
         for _, btn in ipairs(scroll:GetChildren()) do if btn:IsA("TextButton") then btn:Destroy() end end
         table.clear(itemCache)
@@ -1395,15 +1482,15 @@ function SectionMethods:addMultiDropdown(options)
         if data.IsPreset then registerChroma(btn, "TextColor3", "Color Theme") end
         local check = createInstance("Frame", {Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 6, 0.5, -8), BorderSizePixel = 0, ZIndex = 12}, btn)
         createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, check); addBorder(check, "Color Stroke", 1)
-        table.insert(itemConnections, btn.MouseEnter:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, 0.15) end))
-        table.insert(itemConnections, btn.MouseLeave:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.15) end))
-        table.insert(itemConnections, btn.Activated:Connect(function()
+        table.insert(itemConnections, addConnection(btn.MouseEnter:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, 0.15) end)))
+        table.insert(itemConnections, addConnection(btn.MouseLeave:Connect(function() tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.15) end)))
+        table.insert(itemConnections, addConnection(btn.Activated:Connect(function()
             activeItems[data.RawName] = not activeItems[data.RawName]
             local sel = computeSelection()
             selectedLabel.Text = #sel > 0 and table.concat(sel, ", ") or "Select..."
             renderItems(searchBox.Text)
             ctrl.setValue(sel)
-        end))
+        end)))
         table.insert(itemCache, {Name = data.Name, RawName = data.RawName, Button = btn, Check = check, IsPreset = data.IsPreset})
     end
     local function populateCache(newList)
@@ -1435,6 +1522,7 @@ function SectionMethods:addMultiDropdown(options)
         end
     })
     populateCache(options.Items or {})
+    renderItems()
     addConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(function() renderItems(searchBox.Text) end))
     addConnection(selectAllBtn.Activated:Connect(function()
         suppressCallback = true
@@ -1464,14 +1552,22 @@ function SectionMethods:addMultiDropdown(options)
         else closeDropdown() end
     end))
     JustHub:RegisterControl(controlId, function(v) ctrl.setValue(v) end, {getValue = ctrl.getValue, shortName = title, defaultValue = default, tab = self._tabName, section = self._sectionName})
-    return {Refresh = function(self, newList) populateCache(newList); renderItems(searchBox.Text) end, GetValue = function() return ctrl.getValue() end}
+    return {
+        Refresh = function(self, newList)
+            populateCache(newList)
+            local selected = computeSelection()
+            selectedLabel.Text = #selected > 0 and table.concat(selected, ", ") or "Select..."
+            renderItems(searchBox.Text)
+        end,
+        GetValue = function() return ctrl.getValue() end,
+    }
 end
 
 function SectionMethods:addColorPicker(options)
-    options = options or {}
-    local title    = options.Name or "ColorPicker"
+    options = type(options) == "table" and options or {}
+    local title    = tostring(options.Name or "ColorPicker")
     local default  = typeof(options.Default) == "Color3" and options.Default or Color3.fromRGB(255, 255, 255)
-    local callback = options.Callback or function() end
+    local callback = type(options.Callback) == "function" and options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
     local frame = createInstance("Frame", {Name = title .. "ColorPicker", Size = UDim2.new(1, 0, 0, 80), BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
@@ -1512,8 +1608,16 @@ function SectionMethods:addColorPicker(options)
         addConnection(btn.Activated:Connect(function() ctrl.setValue(c) end))
     end
     local function updateColorRGB()
-        local rr = math.clamp(tonumber(rBox.Text) or 0, 0, 255); local gg = math.clamp(tonumber(gBox.Text) or 0, 0, 255); local bb = math.clamp(tonumber(bBox.Text) or 0, 0, 255)
-        local c3 = Color3.fromRGB(rr, gg, bb)
+        local rr, gg, bb = tonumber(rBox.Text), tonumber(gBox.Text), tonumber(bBox.Text)
+        if not isFiniteNumber(rr) or not isFiniteNumber(gg) or not isFiniteNumber(bb) then
+            syncBoxes(ctrl.getValue())
+            return
+        end
+        local c3 = Color3.fromRGB(
+            math.floor(math.clamp(rr, 0, 255) + 0.5),
+            math.floor(math.clamp(gg, 0, 255) + 0.5),
+            math.floor(math.clamp(bb, 0, 255) + 0.5)
+        )
         if c3 ~= ctrl.getValue() then ctrl.setValue(c3) else syncBoxes(c3) end
     end
     local function updateColorHex()
@@ -1531,10 +1635,10 @@ function SectionMethods:addColorPicker(options)
 end
 
 function SectionMethods:addScriptBox(options)
-    options = options or {}
-    local title    = options.Name or "ScriptBox"
+    options = type(options) == "table" and options or {}
+    local title    = tostring(options.Name or "ScriptBox")
     local default  = type(options.Default) == "string" and options.Default or ""
-    local callback = options.Callback or function() end
+    local callback = type(options.Callback) == "function" and options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
     local frame = createInstance("Frame", {Name = title .. "ScriptBox", Size = UDim2.new(1, 0, 0, 96), BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
@@ -1545,10 +1649,10 @@ function SectionMethods:addScriptBox(options)
     local runBtn = createInstance("TextButton", {Text = "Run", Size = UDim2.new(0, 50, 0, 34), Position = UDim2.new(1, -60, 0, 40), TextColor3 = Color3.fromRGB(20, 20, 20), Font = Enum.Font.GothamBold, TextSize = 13, AutoButtonColor = false}, frame)
     applyTheme(runBtn, "BackgroundColor3", "Color Theme"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, runBtn); registerChroma(runBtn, "BackgroundColor3", "Color Theme")
     addConnection(runBtn.MouseEnter:Connect(function()
-        tweenProperty(runBtn, {BackgroundTransparency = math.max(0, surfaceTransparency("Button") - 0.12)}, JustHub.DesignTokens.Animation.Hover)
+        tweenProperty(runBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, JustHub.DesignTokens.Animation.Hover)
     end))
     addConnection(runBtn.MouseLeave:Connect(function()
-        tweenProperty(runBtn, {BackgroundTransparency = surfaceTransparency("Button")}, JustHub.DesignTokens.Animation.Hover)
+        tweenProperty(runBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Theme"]}, JustHub.DesignTokens.Animation.Hover)
     end))
     addConnection(runBtn.Activated:Connect(function()
         task.spawn(function()
@@ -1566,15 +1670,15 @@ function SectionMethods:addScriptBox(options)
 end
 
 function SectionMethods:addBind(options)
-    options = options or {}
-    local title    = options.Name or "KeyBind"
+    options = type(options) == "table" and options or {}
+    local title    = tostring(options.Name or "KeyBind")
     local default  = options.Default or "RightShift"
     if typeof(default) == "EnumItem" and default.EnumType == Enum.KeyCode then
         default = default.Name
     elseif type(default) ~= "string" then
         default = "RightShift"
     end
-    local callback = options.Callback or function() end
+    local callback = type(options.Callback) == "function" and options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
     local blacklist = {
         [Enum.KeyCode.W] = true, [Enum.KeyCode.A] = true, [Enum.KeyCode.S] = true, [Enum.KeyCode.D] = true,
@@ -1660,10 +1764,10 @@ function SectionMethods:addBind(options)
 end
 
 function SectionMethods:addButton(options)
-    options = options or {}
-    local title    = options.Name or "Button"
-    local btnText  = options.ButtonText or "Click"
-    local callback = options.Callback or function() end
+    options = type(options) == "table" and options or {}
+    local title    = tostring(options.Name or "Button")
+    local btnText  = tostring(options.ButtonText or "Click")
+    local callback = type(options.Callback) == "function" and options.Callback or function() end
     local frame = createInstance("Frame", {Name = title .. "ButtonControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
     local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(0.6, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
@@ -1697,10 +1801,10 @@ function SectionMethods:addConfigManager()
     local deleteBtn = createInstance("TextButton", {Text = "Delete Profile", Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 82), Font = Enum.Font.GothamBold, TextSize = 12, AutoButtonColor = false}, frame)
     applyTheme(deleteBtn, "BackgroundColor3", "Color Stroke"); applyTheme(deleteBtn, "TextColor3", "Color Dark Text"); createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, deleteBtn)
     addConnection(saveBtn.MouseEnter:Connect(function()
-        tweenProperty(saveBtn, {BackgroundTransparency = math.max(0, surfaceTransparency("Button") - 0.12)}, JustHub.DesignTokens.Animation.Hover)
+        tweenProperty(saveBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, JustHub.DesignTokens.Animation.Hover)
     end))
     addConnection(saveBtn.MouseLeave:Connect(function()
-        tweenProperty(saveBtn, {BackgroundTransparency = surfaceTransparency("Button")}, JustHub.DesignTokens.Animation.Hover)
+        tweenProperty(saveBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Theme"]}, JustHub.DesignTokens.Animation.Hover)
     end))
     addConnection(loadBtn.MouseEnter:Connect(function() tweenProperty(loadBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, 0.15) end))
     addConnection(loadBtn.MouseLeave:Connect(function() tweenProperty(loadBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, 0.15) end))
@@ -1708,19 +1812,19 @@ function SectionMethods:addConfigManager()
     addConnection(deleteBtn.MouseLeave:Connect(function() tweenProperty(deleteBtn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"], TextColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Dark Text"]}, 0.15) end))
     addConnection(saveBtn.Activated:Connect(function()
         if inputBox.Text == "" then return end
-        local ok, err = JustHub:SaveConfig(inputBox.Text .. ".json")
+        local ok, err = JustHub:SaveConfig(normalizeConfigFileName(inputBox.Text))
         if not ok then JustHub:Notify({Title = "Save Config", Message = "Failed: " .. tostring(err), Duration = 4}) end
     end))
     addConnection(loadBtn.Activated:Connect(function()
         if inputBox.Text == "" then return end
-        local ok, err = JustHub:LoadConfig(inputBox.Text .. ".json")
+        local ok, err = JustHub:LoadConfig(normalizeConfigFileName(inputBox.Text))
         if not ok then JustHub:Notify({Title = "Load Config", Message = "Failed: " .. tostring(err), Duration = 4}) end
     end))
     addConnection(deleteBtn.Activated:Connect(function()
         if inputBox.Text == "" then return end
-        local fn = inputBox.Text .. ".json"
+        local fn = normalizeConfigFileName(inputBox.Text)
         if not isSafeConfigFileName(fn) then JustHub:Notify({Title = "Config Manager", Message = "Invalid filename", Duration = 4}); return end
-        if not delfile then JustHub:Notify({Title = "Config Manager", Message = "delfile not supported by executor", Duration = 4}); return end
+        if type(delfile) ~= "function" then JustHub:Notify({Title = "Config Manager", Message = "delfile not supported by executor", Duration = 4}); return end
         local ok, err = pcall(delfile, fn)
         if ok then JustHub:Notify({Title = "Config Manager", Message = "Deleted: " .. fn, Duration = 3})
         else JustHub:Notify({Title = "Config Manager", Message = "Failed: " .. tostring(err), Duration = 4}) end
@@ -1730,11 +1834,18 @@ end
 
 function JustHub:CreateWindow(options)
     if not isAlive() then return nil end
-    options = options or {}
-    local winName   = options.Name or "JustHub Window"
+    if self.Window and self.ScreenGui and self.ScreenGui.Parent then return self.Window end
+    options = type(options) == "table" and options or {}
+    local winName   = tostring(options.Name or "JustHub Window")
     local themeName = options.Theme or "Darker"
-    local subTitle  = options.SubTitle or "SubTitle"
+    if type(themeName) == "string" then
+        if not isValidTheme(self.Themes[themeName]) then themeName = "Darker" end
+    elseif not isValidTheme(themeName) then
+        themeName = "Darker"
+    end
+    local subTitle  = tostring(options.SubTitle or "SubTitle")
     local player    = Players.LocalPlayer
+    if not player then error("JustHub requires a local player", 2) end
     local screenGui = trackScreenGui(createInstance("ScreenGui", {Name = "JustHub", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Global}, targetParent))
     self.ScreenGui = screenGui; JustHub.Save.Theme = themeName
     local initialCamera = workspace.CurrentCamera
@@ -1764,10 +1875,14 @@ function JustHub:CreateWindow(options)
         registerSurface(btn, "Button")
         createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, btn)
         addConnection(btn.MouseEnter:Connect(function()
-            tweenProperty(btn, {BackgroundTransparency = math.max(0, surfaceTransparency("Button") - 0.12)}, JustHub.DesignTokens.Animation.Hover)
+            tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, JustHub.DesignTokens.Animation.Hover)
         end))
         addConnection(btn.MouseLeave:Connect(function()
-            tweenProperty(btn, {BackgroundTransparency = surfaceTransparency("Button")}, JustHub.DesignTokens.Animation.Hover)
+            local theme = getCurrentTheme(JustHub.Save.Theme)
+            local properties = JustHub.ThemeObjects[btn]
+            local binding = properties and properties.BackgroundColor3
+            local baseKey = binding and binding.ThemeKey or themeKey
+            tweenProperty(btn, {BackgroundColor3 = theme[baseKey] or theme[themeKey]}, JustHub.DesignTokens.Animation.Hover)
         end))
         return btn
     end
@@ -1776,7 +1891,7 @@ function JustHub:CreateWindow(options)
     local closeBtn = createWinBtn("CloseBtn", "Color Stroke", 3)
     local lockBtn = createWinBtn("LockBtn", "Color Dark Text", 4, "🔒")
     applyTheme(lockBtn, "TextColor3", "Color Text")
-    local headerSep = createInstance("Frame", {Size = UDim2.new(1, -40, 0, 1), Position = UDim2.new(0, 20, 0, 52), BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    local headerSep = createInstance("Frame", {Size = UDim2.new(1, -40, 0, 1), Position = UDim2.new(0, 20, 0, 52), BackgroundTransparency = 0, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
     applyTheme(headerSep, "BackgroundColor3", "Color Stroke")
     registerTransparency(headerSep, "Divider", "BackgroundTransparency")
     local profileFrame = createInstance("Frame", {Name = "ProfileFrame", Size = UDim2.new(0, JustHub.Save.TabSize, 0, 46), Position = UDim2.new(0, 20, 0, 62), BackgroundTransparency = 1, ZIndex = 2}, mainFrame)
@@ -1798,14 +1913,14 @@ function JustHub:CreateWindow(options)
     addBorder(contentContainer, "Color Stroke", 1)
     local searchFrame = createInstance("Frame", {Name = "SearchFrame", Size = UDim2.new(1, 0, 0, 32), Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = surfaceTransparency("Input"), BorderSizePixel = 0, ZIndex = 2}, contentContainer)
     applyTheme(searchFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, searchFrame); addBorder(searchFrame, "Color Stroke", 1)
-    local searchIcon = createInstance("ImageLabel", {Name = "SearchIcon", Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(0, 11, 0.5, -7), BackgroundTransparency = 1, Image = JustHub.Icons.search, ImageTransparency = 0.15, ZIndex = 3}, searchFrame)
+    local searchIcon = createInstance("ImageLabel", {Name = "SearchIcon", Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(0, 11, 0.5, -7), BackgroundTransparency = 1, Image = JustHub.Icons.search, ImageTransparency = 0, ZIndex = 3}, searchFrame)
     applyTheme(searchIcon, "ImageColor3", "Color Dark Text")
     registerTransparency(searchIcon, "ImageMuted", "ImageTransparency")
     local searchBox = createInstance("TextBox", {Size = UDim2.new(1, -42, 1, 0), Position = UDim2.new(0, 34, 0, 0), Font = Enum.Font.Gotham, TextSize = 12, PlaceholderText = "Search controls...", ClearTextOnFocus = false, BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3}, searchFrame)
     applyTheme(searchBox, "TextColor3", "Color Text"); applyTheme(searchBox, "PlaceholderColor3", "Color Dark Text")
     local tabsContainer = createInstance("Frame", {Name = "TabsContainer", Size = UDim2.new(1, 0, 1, -40), Position = UDim2.new(0, 0, 0, 38), BackgroundTransparency = 1, ZIndex = 2}, contentContainer)
     local footer = createInstance("Frame", {Name = "Footer", Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -20), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
-    local watermark = createInstance("TextLabel", {Name = "Watermark", Text = "JustHub  •  " .. player.DisplayName, Size = UDim2.new(0, 220, 1, 0), Position = UDim2.new(0, 20, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 10, TextTransparency = 0.2, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, footer)
+    local watermark = createInstance("TextLabel", {Name = "Watermark", Text = "JustHub  •  " .. player.DisplayName, Size = UDim2.new(0, 220, 1, 0), Position = UDim2.new(0, 20, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 10, TextTransparency = 0, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, footer)
     applyTheme(watermark, "TextColor3", "Color Dark Text")
     registerTransparency(watermark, "TextMuted", "TextTransparency")
     local fpsLabel = createInstance("TextLabel", {Name = "FPSLabel", Text = "FPS: --", Size = UDim2.new(0, 100, 1, 0), Position = UDim2.new(1, -20, 0, 0), AnchorPoint = Vector2.new(1, 0), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 2}, footer)
@@ -1851,11 +1966,16 @@ function JustHub:CreateWindow(options)
     end
     addConnection(hideBtn.Activated:Connect(function() setWindowState(windowState == "minimized" and "normal" or "minimized") end))
     addConnection(maxBtn.Activated:Connect(function() setWindowState(windowState == "maximized" and "normal" or "maximized") end))
+    local hiddenWindowSize, hiddenWindowPosition
     addConnection(closeBtn.Activated:Connect(function()
         if windowState == "hidden" then return end
-        local prevState = windowState; windowState = "hidden"
-        local t = tweenProperty(mainFrame, {Position = UDim2.new(0.5, 0, -0.5, 0), BackgroundTransparency = 1}, 0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
-        connectOnce(t.Completed, function()
+        local prevState = windowState
+        hiddenWindowSize, hiddenWindowPosition = mainFrame.Size, mainFrame.Position
+        windowState = "hidden"
+        local t = tweenProperty(mainFrame, {Position = UDim2.new(0.5, 0, -0.5, 0)}, 0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
+        if not t then mainFrame.Visible = false; return end
+        connectOnce(t.Completed, function(playbackState)
+            if playbackState ~= Enum.PlaybackState.Completed then return end
             if not isAlive() then return end
             mainFrame.Visible = false
             local showUI = trackScreenGui(createInstance("ScreenGui", {Name = "JustHubShowUI", ResetOnSpawn = false}, targetParent))
@@ -1863,10 +1983,20 @@ function JustHub:CreateWindow(options)
             applyTheme(showBtn, "BackgroundColor3", "Color Hub 2"); applyTheme(showBtn, "TextColor3", "Color Text")
             registerSurface(showBtn, "Button")
             createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, showBtn); addBorder(showBtn, "Color Stroke", 1)
-            addConnection(showBtn.Activated:Connect(function()
+            local showConnection
+            showConnection = addConnection(showBtn.Activated:Connect(function()
                 if not isAlive() then return end
-                mainFrame.Visible = true; windowState = prevState or "normal"
-                tweenProperty(mainFrame, {Position = savedNormalPos, BackgroundTransparency = surfaceTransparency("MainWindow"), Size = savedNormalSize}, 0.5, Enum.EasingStyle.Exponential)
+                mainFrame.Visible = true
+                windowState = prevState or "normal"
+                tweenProperty(mainFrame, {
+                    Position = hiddenWindowPosition or savedNormalPos,
+                    Size = hiddenWindowSize or savedNormalSize,
+                }, 0.5, Enum.EasingStyle.Exponential)
+                if showConnection then
+                    removeConnection(showConnection)
+                    showConnection:Disconnect()
+                    showConnection = nil
+                end
                 pcall(function() showUI:Destroy() end)
                 for i = #JustHub.ScreenGuis, 1, -1 do if JustHub.ScreenGuis[i] == showUI then table.remove(JustHub.ScreenGuis, i) end end
             end))
@@ -2007,7 +2137,7 @@ function JustHub:CreateWindow(options)
         end
     end))
     function windowObj:addTab(tabName, iconName)
-        tabName = tabName or "Tab"
+        tabName = tostring(tabName or "Tab")
         local btn = createInstance("TextButton", {
             Name = tabName .. "Button", Text = "", Size = UDim2.new(1, 0, 0, 40),
             BackgroundTransparency = 1, AutoButtonColor = false,
@@ -2018,7 +2148,7 @@ function JustHub:CreateWindow(options)
         createInstance("UICorner", {CornerRadius = UDim.new(0, JustHub.DesignTokens.Geometry.TabRadius)}, btn)
         local indicator = createInstance("Frame", {
             Name = "ActiveIndicator", Size = UDim2.new(0, 3, 0, 16), Position = UDim2.new(0, 6, 0.5, -8),
-            BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 4
+            BackgroundTransparency = 0, BorderSizePixel = 0, ZIndex = 4, Visible = false
         }, btn)
         applyTheme(indicator, "BackgroundColor3", "Color Theme")
         createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, indicator)
@@ -2040,8 +2170,8 @@ function JustHub:CreateWindow(options)
                 local active = (t == tabObj)
                 t.Content.Visible = active
                 setSurfaceKind(t.Button, active and "TabActive" or "TabInactive")
-                tweenProperty(t.Button, {BackgroundTransparency = surfaceTransparency(active and "TabActive" or "TabInactive")}, JustHub.DesignTokens.Animation.TabTransition)
-                if t.Indicator then tweenProperty(t.Indicator, {BackgroundTransparency = active and 0 or 1}, JustHub.DesignTokens.Animation.TabTransition) end
+                tweenProperty(t.Button, {BackgroundColor3 = theme[active and "Color Hub 2" or "Color Hub 1"]}, JustHub.DesignTokens.Animation.TabTransition)
+                if t.Indicator then t.Indicator.Visible = active end
                 local textObj = t.Button:FindFirstChildOfClass("TextLabel")
                 local imgObj = t.Button:FindFirstChildOfClass("ImageLabel")
                 if textObj then
@@ -2058,17 +2188,17 @@ function JustHub:CreateWindow(options)
         end
         addConnection(btn.MouseEnter:Connect(function()
             if tabObj.Content.Visible then return end
-            tweenProperty(btn, {BackgroundTransparency = surfaceTransparency("TabHover")}, JustHub.DesignTokens.Animation.Hover)
+            tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Stroke"]}, JustHub.DesignTokens.Animation.Hover)
         end))
         addConnection(btn.MouseLeave:Connect(function()
             if tabObj.Content.Visible then return end
-            tweenProperty(btn, {BackgroundTransparency = surfaceTransparency("TabInactive")}, JustHub.DesignTokens.Animation.Hover)
+            tweenProperty(btn, {BackgroundColor3 = getCurrentTheme(JustHub.Save.Theme)["Color Hub 1"]}, JustHub.DesignTokens.Animation.Hover)
         end))
         addConnection(btn.Activated:Connect(updateTabs))
         if #windowObj.Tabs == 1 then updateTabs() end
         if applyResponsiveLayout then applyResponsiveLayout() end
         function tabObj:addSection(sectionName)
-            sectionName = sectionName or "Section"
+            sectionName = tostring(sectionName or "Section")
 
             local secFrame = createInstance("Frame", {
                 Name = sectionName,
@@ -2151,180 +2281,262 @@ function JustHub:CreateWindow(options)
 end
 
 function JustHub:ShowLoadingScreen(duration, callback)
-    duration = duration or 5
-    callback = callback or function() end
-    if not isAlive() then return end
-    local loadGui = trackScreenGui(createInstance("ScreenGui", {Name = "JustHubLoadingScreen", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Global}, targetParent))
-    local bgOverlay = createInstance("Frame", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 0, BorderSizePixel = 0, ZIndex = 100}, loadGui)
+    duration = tonumber(duration) or 5
+    if not isFiniteNumber(duration) then duration = 5 end
+    duration = math.max(0.05, duration)
+    callback = type(callback) == "function" and callback or function() end
+    if not isAlive() then return false end
+
+    local loadGui = trackScreenGui(createInstance("ScreenGui", {
+        Name = "JustHubLoadingScreen",
+        ResetOnSpawn = false,
+        IgnoreGuiInset = true,
+        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+    }, targetParent))
+    if not loadGui then return false end
+
+    local bgOverlay = createInstance("Frame", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        ZIndex = 100,
+    }, loadGui)
     applyTheme(bgOverlay, "BackgroundColor3", "Color Hub 2")
-    local titleLabel = createInstance("TextLabel", {Text = "JustHub Library", Font = Enum.Font.GothamBold, TextSize = 24, BackgroundTransparency = 1, Size = UDim2.new(0, 200, 0, 50), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, -50), ZIndex = 101}, loadGui)
+
+    local titleLabel = createInstance("TextLabel", {
+        Text = "JustHub Library",
+        Font = Enum.Font.GothamBold,
+        TextSize = 24,
+        BackgroundTransparency = 1,
+        Size = UDim2.new(0, 240, 0, 50),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, -50),
+        ZIndex = 101,
+    }, loadGui)
     applyTheme(titleLabel, "TextColor3", "Color Text")
-    local barContainer = createInstance("Frame", {Size = UDim2.new(0, 300, 0, 10), Position = UDim2.new(0.5, 0, 0.5, 20), AnchorPoint = Vector2.new(0.5, 0.5), BorderSizePixel = 0, ZIndex = 101}, loadGui)
-    applyTheme(barContainer, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, barContainer); addBorder(barContainer, "Color Stroke", 1)
-    local barFill = createInstance("Frame", {Size = UDim2.new(0, 0, 1, 0), BorderSizePixel = 0, ZIndex = 102}, barContainer)
-    applyTheme(barFill, "BackgroundColor3", "Color Theme"); createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, barFill)
-    local tween = tweenProperty(barFill, {Size = UDim2.new(1, 0, 1, 0)}, duration)
-    local titleTween = TweenService:Create(titleLabel, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {TextTransparency = 0.5})
-    local titleTweenRecord = {
-        Tween = titleTween,
-        Goal = {TextTransparency = 0.5},
-        Duration = math.huge,
-        EasingStyle = Enum.EasingStyle.Sine,
-        EasingDirection = Enum.EasingDirection.InOut,
-        StartedAt = os.clock(),
-    }
-    activeTweens[titleLabel] = titleTweenRecord
-    titleTween:Play()
-    if tween then
-        connectOnce(tween.Completed, function()
-            if not isAlive() then return end
-            titleTween:Cancel()
-            if activeTweens[titleLabel] == titleTweenRecord then activeTweens[titleLabel] = nil end
-            task.wait(0.3)
-            local fade = tweenProperty(bgOverlay, {BackgroundTransparency = 1}, 0.5)
-            tweenProperty(titleLabel, {TextTransparency = 1}, 0.5)
-            tweenProperty(barContainer, {BackgroundTransparency = 1}, 0.5)
-            tweenProperty(barFill, {BackgroundTransparency = 1}, 0.5)
-            if fade then
-                connectOnce(fade.Completed, function()
-                    if loadGui then pcall(function() loadGui:Destroy() end) end
-                    for i = #JustHub.ScreenGuis, 1, -1 do if JustHub.ScreenGuis[i] == loadGui then table.remove(JustHub.ScreenGuis, i) end end
-                    if isAlive() then local ok, err = pcall(callback); if not ok then warn("[JustHub] Loading screen error: " .. tostring(err)) end end
-                end)
+
+    local barContainer = createInstance("Frame", {
+        Size = UDim2.new(0.7, 0, 0, 10),
+        Position = UDim2.new(0.5, 0, 0.5, 20),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BorderSizePixel = 0,
+        ZIndex = 101,
+    }, loadGui)
+    applyTheme(barContainer, "BackgroundColor3", "Color Hub 1")
+    createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, barContainer)
+    addBorder(barContainer, "Color Stroke", 1)
+
+    local barFill = createInstance("Frame", {
+        Size = UDim2.new(0, 0, 1, 0),
+        BorderSizePixel = 0,
+        ZIndex = 102,
+    }, barContainer)
+    applyTheme(barFill, "BackgroundColor3", "Color Theme")
+    createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, barFill)
+
+    local finished = false
+    local function finishLoading()
+        if finished then return end
+        finished = true
+        if loadGui then pcall(function() loadGui:Destroy() end) end
+        for index = #JustHub.ScreenGuis, 1, -1 do
+            if JustHub.ScreenGuis[index] == loadGui then table.remove(JustHub.ScreenGuis, index) end
+        end
+        if isAlive() then
+            local ok, err = pcall(callback)
+            if not ok then warn("[JustHub] Loading screen callback failed: " .. tostring(err)) end
+        end
+    end
+
+    local fillTween = tweenProperty(barFill, {Size = UDim2.new(1, 0, 1, 0)}, duration)
+    if fillTween then
+        connectOnce(fillTween.Completed, function(playbackState)
+            if playbackState == Enum.PlaybackState.Completed then
+                task.delay(0.15, finishLoading)
             end
         end)
+    else
+        task.defer(finishLoading)
     end
+    return true
 end
 
 function JustHub:InitializeUI(options)
     if not isAlive() or self._initializing or self.Window then return false end
     self._initializing = true
-    self:ShowLoadingScreen(3, function()
+    local started = self:ShowLoadingScreen(3, function()
         self._initializing = false
         if not isAlive() then return end
-        self.Window = self:CreateWindow(options)
+        local ok, result = pcall(function() return self:CreateWindow(options) end)
+        if not ok then
+            warn("[JustHub] UI initialization failed: " .. tostring(result))
+            self:Notify({Title = "Initialization Error", Message = tostring(result), Duration = 5})
+            return
+        end
+        self.Window = result
     end)
+    if not started then self._initializing = false; return false end
     return true
 end
 
-local function serializeConfig(data)
+local function serializeConfig(data, seen)
+    if type(data) ~= "table" then return data end
+    seen = seen or {}
+    if seen[data] then error("Config contains a cyclic table", 0) end
+    seen[data] = true
+
     local serialized = {}
-    for k, v in pairs(data) do
-        if typeof(v) == "Color3" then serialized[k] = {__type = "Color3", R = v.R, G = v.G, B = v.B}
-        elseif type(v) == "table" then serialized[k] = serializeConfig(v)
-        else serialized[k] = v end
+    for key, value in pairs(data) do
+        local keyType = type(key)
+        if keyType ~= "string" and keyType ~= "number" then
+            error("Config table keys must be strings or numbers", 0)
+        end
+        if typeof(value) == "Color3" then
+            serialized[key] = {__type = "Color3", R = value.R, G = value.G, B = value.B}
+        elseif type(value) == "table" then
+            serialized[key] = serializeConfig(value, seen)
+        elseif type(value) == "string" or type(value) == "number" or type(value) == "boolean" then
+            if type(value) == "number" and not isFiniteNumber(value) then
+                error("Config contains a non-finite number", 0)
+            end
+            serialized[key] = value
+        elseif value == nil then
+            serialized[key] = nil
+        else
+            error("Unsupported config value type: " .. type(value), 0)
+        end
     end
+    seen[data] = nil
     return serialized
 end
 
 local function deserializeConfig(data)
+    if type(data) ~= "table" then error("Config root must be a table", 0) end
     local deserialized = {}
-    for k, v in pairs(data) do
-        if type(v) == "table" and v.__type == "Color3" then deserialized[k] = Color3.new(v.R, v.G, v.B)
-        elseif type(v) == "table" then deserialized[k] = deserializeConfig(v)
-        else deserialized[k] = v end
+    for key, value in pairs(data) do
+        if type(value) == "table" and value.__type == "Color3" then
+            local r, g, b = tonumber(value.R), tonumber(value.G), tonumber(value.B)
+            if not isFiniteNumber(r) or not isFiniteNumber(g) or not isFiniteNumber(b) then
+                error("Config contains an invalid Color3 value", 0)
+            end
+            deserialized[key] = Color3.new(math.clamp(r, 0, 1), math.clamp(g, 0, 1), math.clamp(b, 0, 1))
+        elseif type(value) == "table" then
+            deserialized[key] = deserializeConfig(value)
+        else
+            deserialized[key] = value
+        end
     end
     return deserialized
 end
 
-local function isSafeConfigFileName(fileName)
-    return type(fileName) == "string"
-        and fileName ~= ""
-        and fileName ~= "."
-        and fileName ~= ".."
-        and #fileName <= 128
-        and not fileName:find("/", 1, true)
-        and not fileName:find("\\", 1, true)
-        and not fileName:find(":", 1, true)
-        and not fileName:find("..", 1, true)
-        and not fileName:find("\0", 1, true)
-end
-
 function JustHub:SaveConfig(fileName)
-    fileName = fileName or "JustHub_Config.json"
+    fileName = normalizeConfigFileName(fileName or "JustHub_Config.json")
     if not isSafeConfigFileName(fileName) then
-        warn("[JustHub] SaveConfig: Invalid filename '" .. tostring(fileName) .. "'")
         return false, "Invalid filename"
     end
-    local success, err = pcall(function()
-        if writefile then
-            local configToSave = shallowClone(JustHub.ConfigData)
-            local metadataKey = "__JustHubMeta"
-            while configToSave[metadataKey] ~= nil do
-                metadataKey = metadataKey .. "_"
-            end
-            configToSave[metadataKey] = {
-                __JustHubInternal = "TransparencySettings",
-                Version = 2,
-                Transparency = JustHub.Save.Transparency,
-            }
-            local json = HttpService:JSONEncode(serializeConfig(configToSave))
-            writefile(fileName, json)
-            StarterGui:SetCore("SendNotification", {Title = "Save Config", Text = "Success save at " .. fileName, Duration = 5})
-        else
-            warn("Saving config not supported.")
-        end
+    if type(writefile) ~= "function" then
+        return false, "writefile is not supported by this executor"
+    end
+
+    local ok, result = pcall(function()
+        local configToSave = cloneValue(self.ConfigData)
+        local metadataKey = "__JustHubMeta"
+        while configToSave[metadataKey] ~= nil do metadataKey = metadataKey .. "_" end
+        configToSave[metadataKey] = {
+            __JustHubInternal = "TransparencySettings",
+            Version = 3,
+            Transparency = 0,
+            OpaqueUI = true,
+        }
+        local json = HttpService:JSONEncode(serializeConfig(configToSave))
+        writefile(fileName, json)
+        return true
     end)
-    if not success then warn("Save error: " .. err) end
-    return success
+
+    if not ok then
+        warn("[JustHub] SaveConfig failed: " .. tostring(result))
+        return false, tostring(result)
+    end
+    sendCoreNotification("Save Config", "Saved: " .. fileName, 4)
+    return true
 end
 
 function JustHub:LoadConfig(fileName)
-    fileName = fileName or "JustHub_Config.json"
+    fileName = normalizeConfigFileName(fileName or "JustHub_Config.json")
     if not isSafeConfigFileName(fileName) then
-        warn("[JustHub] LoadConfig: Invalid filename '" .. tostring(fileName) .. "'")
         return false, "Invalid filename"
     end
-    local config = {}
-    local success, err = pcall(function()
-        if readfile then
-            local data = readfile(fileName)
-            config = deserializeConfig(HttpService:JSONDecode(data))
-            if type(config) ~= "table" then error("Config root must be a table") end
-            local metadata
-            for key, value in pairs(config) do
-                if type(value) == "table" and value.__JustHubInternal == "TransparencySettings" and value.Version == 2 then
-                    metadata = value
-                    config[key] = nil
-                    break
-                end
+    if type(readfile) ~= "function" then
+        return false, "readfile is not supported by this executor"
+    end
+
+    local ok, result = pcall(function()
+        local rawData = readfile(fileName)
+        if type(rawData) ~= "string" or rawData == "" then error("Config file is empty or unreadable") end
+        local decoded = HttpService:JSONDecode(rawData)
+        local config = deserializeConfig(decoded)
+        local metadata
+
+        for key, value in pairs(config) do
+            if type(value) == "table" and value.__JustHubInternal == "TransparencySettings" then
+                metadata = value
+                config[key] = nil
+                break
             end
-            JustHub.ConfigData = config
-            if type(metadata) == "table" and metadata.Transparency ~= nil then
-                local savedTransparency = tonumber(metadata.Transparency)
-                if not isFiniteNumber(savedTransparency) then
-                    savedTransparency = TransparencyController.SettingDefault
-                end
-                JustHub:SetTransparency(savedTransparency)
-            end
-            JustHub:ApplyConfig(config)
-            StarterGui:SetCore("SendNotification", {Title = "Load Config", Text = "Success load from " .. fileName, Duration = 5})
-        else
-            warn("Loading config not supported.")
         end
+
+        self.ConfigData = cloneValue(config)
+        if type(metadata) == "table" then self:SetTransparency(0) end
+        local applyOk, applyResult = self:ApplyConfig(config)
+        if not applyOk then error(tostring(applyResult)) end
+        return applyResult
     end)
-    if not success then warn("Load error: " .. err) end
-    return config
+
+    if not ok then
+        warn("[JustHub] LoadConfig failed: " .. tostring(result))
+        return false, tostring(result)
+    end
+    sendCoreNotification("Load Config", "Loaded: " .. fileName, 4)
+    return true, result
 end
 
 function JustHub:UpdateTheme(newTheme)
-    self.Save.Theme = newTheme
-    local themeData = getCurrentTheme(newTheme)
+    local themeData
+    if type(newTheme) == "string" then
+        themeData = self.Themes[newTheme]
+        if not isValidTheme(themeData) then return false, "Unknown or invalid theme: " .. newTheme end
+        self.Save.Theme = newTheme
+    elseif type(newTheme) == "table" and isValidTheme(newTheme) then
+        themeData = newTheme
+        self.Save.Theme = newTheme
+    else
+        return false, "Theme must be a registered theme name or a valid theme table"
+    end
+
     for obj, props in pairs(self.ThemeObjects) do
-        for prop, data in pairs(props) do
-            local skip = false
-            if self.ChromaEnabled and self.ChromaObjects[obj] and self.ChromaObjects[obj][prop] then
-                skip = true
-            end
-            if not skip then
-                if data.CustomFunc then data.CustomFunc()
-                elseif themeData[data.ThemeKey] then obj[prop] = themeData[data.ThemeKey] end
+        local parentOk, parent = pcall(function() return obj.Parent end)
+        if not parentOk or parent == nil then
+            self.ThemeObjects[obj] = nil
+        else
+            for prop, data in pairs(props) do
+                local chromaActive = self.ChromaEnabled and self.ChromaObjects[obj] and self.ChromaObjects[obj][prop]
+                if not chromaActive then
+                    local ok, err = pcall(function()
+                        if data.CustomFunc then
+                            data.CustomFunc()
+                        elseif themeData[data.ThemeKey] then
+                            obj[prop] = themeData[data.ThemeKey]
+                        end
+                    end)
+                    if not ok then warn("[JustHub] Theme update failed: " .. tostring(err)) end
+                end
             end
         end
     end
+    return true
 end
 
-function JustHub:SetTheme(newTheme) self:UpdateTheme(newTheme) end
+function JustHub:SetTheme(newTheme) return self:UpdateTheme(newTheme) end
 
 function JustHub:ToggleUIVisibility()
     if self.ScreenGui and self.ScreenGui.Parent then self.ScreenGui.Enabled = not self.ScreenGui.Enabled end
@@ -2343,23 +2555,31 @@ function JustHub:SetTransparency(alpha)
     if not isFiniteNumber(numeric) then
         return false, "Transparency must be a finite number"
     end
-    self.Save.Transparency = normalizeTransparencySetting(numeric, self.Save.Transparency)
+    self.Save.Transparency = 0
     refreshTransparencyTokens()
     TransparencyController:Refresh()
+    return true, "Opaque UI is enforced; legacy transparency values are ignored"
+end
+
+function JustHub:SetKey(key)
+    if type(key) ~= "string" or key == "" then return false end
+    self.KeySystem.Enabled = true
+    self.KeySystem.Key = key
     return true
 end
 
-function JustHub:SetKey(key) self.KeySystem.Enabled = true; self.KeySystem.Key = key end
 function JustHub:CheckKey(inputKey)
     if not self.KeySystem.Enabled then return true end
-    return inputKey == self.KeySystem.Key
+    return type(inputKey) == "string" and inputKey == self.KeySystem.Key
 end
 
 function JustHub:Notify(options)
-    options = options or {}
+    options = type(options) == "table" and options or {}
     local title = tostring(options.Title or "")
     local message = tostring(options.Message or "")
-    local duration = math.max(0, tonumber(options.Duration) or 5)
+    local duration = tonumber(options.Duration) or 5
+    if not isFiniteNumber(duration) then duration = 5 end
+    duration = math.max(0, duration)
     local showProgress = options.ShowProgress == true
     if not self.NotificationContainer or not isAlive() then return end
     local notifFrame = createInstance("Frame", {Name = "NotificationSurface", Size = UDim2.new(0, 300, 0, 0), BackgroundTransparency = surfaceTransparency("Notification"), ClipsDescendants = true}, self.NotificationContainer)
@@ -2389,7 +2609,7 @@ function JustHub:Notify(options)
         if showProgress and progressFrame then tweenProperty(progressFrame, {Size = UDim2.new(0, 0, 0, 4)}, duration, Enum.EasingStyle.Linear) end
         task.wait(duration)
         if not isAlive() or not notifFrame.Parent then finish(); return end
-        local outTween = tweenProperty(notifFrame, {BackgroundTransparency = 1, Size = UDim2.new(0, 300, 0, 0)}, JustHub.DesignTokens.Animation.NotificationTransition, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        local outTween = tweenProperty(notifFrame, {Size = UDim2.new(0, 300, 0, 0)}, JustHub.DesignTokens.Animation.NotificationTransition, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
         if outTween then connectOnce(outTween.Completed, function() if notifFrame then pcall(function() notifFrame:Destroy() end) end end) end
         finish()
     end)
@@ -2399,9 +2619,11 @@ end
 function JustHub:PromoNotify(interval)
     if not self.PromoNotifyEnabled then return end
     if self._promoThread then return end
-    interval = math.max(10, tonumber(interval) or 30)
+    interval = tonumber(interval) or 30
+    if not isFiniteNumber(interval) then interval = 30 end
+    interval = math.clamp(interval, 10, 3600)
     self._promoThread = task.spawn(function()
-        while isAlive() and self.ScreenGui and self.ScreenGui.Parent do
+        while isAlive() and self.PromoNotifyEnabled and self.ScreenGui and self.ScreenGui.Parent do
             self:Notify({Title = "JustHub UI", Message = "Thanks for using JustHub Library " .. self.Info.Version, Duration = 3, ShowProgress = true})
             task.wait(interval)
         end
@@ -2413,11 +2635,19 @@ function JustHub:Destroy()
     if self._destroyed then return end
     self._destroyed = true
     self._initializing = false
+    self.PromoNotifyEnabled = false
+    self.ChromaEnabled = false
     for _, conn in ipairs(self.Connections) do pcall(function() conn:Disconnect() end) end
     table.clear(self.Connections)
-    for _, tweenRecord in pairs(activeTweens) do
-        local tween = type(tweenRecord) == "table" and tweenRecord.Tween or tweenRecord
-        if tween then pcall(function() tween:Cancel() end) end
+    local cancelledTweenRecords = {}
+    for _, bucket in pairs(activeTweens) do
+        for _, tweenRecord in pairs(bucket) do
+            if tweenRecord and not cancelledTweenRecords[tweenRecord] then
+                cancelledTweenRecords[tweenRecord] = true
+                if tweenRecord.Connection then pcall(function() tweenRecord.Connection:Disconnect() end) end
+                if tweenRecord.Tween then pcall(function() tweenRecord.Tween:Cancel() end) end
+            end
+        end
     end
     table.clear(activeTweens)
     if self._promoThread then
