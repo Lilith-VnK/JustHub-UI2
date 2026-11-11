@@ -60,7 +60,7 @@ JustHub.Themes = {
 }
 
 JustHub.Info = {Version = "3.1.1"}
-JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Transparency = 0.15, Locked = false}
+JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Transparency = 0.1, Locked = false}
 JustHub.ConfigData = {}
 JustHub.ControlRegistry = {}
 JustHub.ControlAliases = {}
