@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-3.1.1-8A2BE2?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Version-1.1.2-8A2BE2?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Language-Luau-00A2FF?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Interface-Modern%20Glass-20C997?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Status-Development-orange?style=for-the-badge" />
