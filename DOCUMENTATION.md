@@ -8,9 +8,7 @@ JustHub UI is a customizable Roblox GUI framework with a modern glass-inspired i
 - `Players.LocalPlayer` must be available
 - For configuration persistence: `writefile`, `readfile`, and optionally `delfile`
 
-## Quick Start
-
-Use this pattern to load JustHub directly:
+## Simple Usage
 
 ```lua
 local JustHub = loadstring(game:HttpGet("https://raw.githubusercontent.com/Lilith-VnK/JustHub-UI2/refs/heads/main/JustHub2.lua"))()
@@ -27,37 +25,35 @@ JustHub:InitializeUI({
     Name = "Just Hub UI",
     Theme = "Darker"
 })
+
+task.spawn(function()
+    while not JustHub.Window do
+        task.wait()
+    end
+
+    local window = JustHub.Window
+    local mainTab = window:addTab("Main", "home")
+    local mainSection = mainTab:addSection("General")
+
+    mainSection:addToggle({
+        Name = "Enable Feature",
+        Default = false,
+        Callback = function(value)
+            print("Feature enabled:", value)
+        end
+    })
+
+    mainSection:addButton({
+        Name = "Test Action",
+        ButtonText = "Click Me",
+        Callback = function()
+            print("Button clicked")
+        end
+    })
+end)
 ```
 
-## Adaptive Device Layout
-
-JustHub can automatically detect whether the user is on Desktop or Mobile.
-
-```lua
-local DeviceLayout = loadstring(game:HttpGet("https://raw.githubusercontent.com/Lilith-VnK/JustHub-UI2/refs/heads/feature/adaptive-device-layout/DeviceLayout.lua"))()
-
-DeviceLayout:Init(JustHub)
-```
-
-Call this after loading JustHub and before creating the window.
-
-### Device Detection Rules
-
-| Device condition | Selected mode |
-|---|---|
-| Touch enabled, keyboard disabled | Mobile |
-| Touch and keyboard enabled, small screen | Mobile |
-| Touch and keyboard enabled, large screen | Desktop |
-| Keyboard only | Desktop |
-
-### Adaptive Sizes
-
-| Mode | Window size | Sidebar | Scale |
-|---|---:|---:|---:|
-| Desktop | 620 x 440 | 135 px | 1.0 |
-| Mobile | 92% screen width, 68% screen height | 48-72 px | 0.82 |
-
-## Complete Example
+## Full Usage
 
 ```lua
 local JustHub = loadstring(game:HttpGet("https://raw.githubusercontent.com/Lilith-VnK/JustHub-UI2/refs/heads/main/JustHub2.lua"))()
@@ -112,6 +108,83 @@ task.spawn(function()
         end
     })
 
+    power:addToggle({
+        Name = "Enable Flight",
+        Default = false,
+        Callback = function(value)
+            print("Flight enabled:", value)
+        end
+    })
+
+    power:addTextBox({
+        Name = "Custom Speed",
+        Default = "50",
+        Callback = function(value)
+            print("Custom speed:", value)
+        end
+    })
+
+    power:addDropdown({
+        Name = "Flight Mode",
+        Default = "Normal",
+        Items = {"Normal", "Fast", "Extreme"},
+        Callback = function(value)
+            print("Flight mode:", value)
+        end
+    })
+
+    power:addColorPicker({
+        Name = "Trail Color",
+        Default = Color3.fromRGB(0, 170, 255),
+        Callback = function(color)
+            print("Trail color:", color)
+        end
+    })
+
+    power:addKeybind({
+        Name = "Toggle Flight",
+        Default = Enum.KeyCode.F,
+        Callback = function(key)
+            print("Flight keybind:", key)
+        end
+    })
+
+    util:addButton({
+        Name = "Save Configuration",
+        ButtonText = "Save",
+        Callback = function()
+            local success, err = JustHub:SaveConfig("JustHubConfig.json")
+            if success then
+                JustHub:Notify({
+                    Title = "Config Saved",
+                    Message = "Configuration saved successfully.",
+                    Duration = 3,
+                    ShowProgress = true
+                })
+            else
+                warn(err)
+            end
+        end
+    })
+
+    util:addButton({
+        Name = "Load Configuration",
+        ButtonText = "Load",
+        Callback = function()
+            local success, err = JustHub:LoadConfig("JustHubConfig.json")
+            if success then
+                JustHub:Notify({
+                    Title = "Config Loaded",
+                    Message = "Configuration loaded successfully.",
+                    Duration = 3,
+                    ShowProgress = true
+                })
+            else
+                warn(err)
+            end
+        end
+    })
+
     util:addChromaToggle()
     util:addConfigManager()
 
@@ -124,7 +197,33 @@ task.spawn(function()
 end)
 ```
 
-## Device API
+## Device Layout
+
+```lua
+local DeviceLayout = loadstring(game:HttpGet("https://raw.githubusercontent.com/Lilith-VnK/JustHub-UI2/refs/heads/feature/adaptive-device-layout/DeviceLayout.lua"))()
+
+DeviceLayout:Init(JustHub)
+```
+
+Call this after loading JustHub and before `JustHub:InitializeUI()`.
+
+### Detection Rules
+
+| Device condition | Selected mode |
+|---|---|
+| Touch enabled, keyboard disabled | Mobile |
+| Touch and keyboard enabled, small screen | Mobile |
+| Touch and keyboard enabled, large screen | Desktop |
+| Keyboard only | Desktop |
+
+### Adaptive Sizes
+
+| Mode | Window size | Sidebar | Scale |
+|---|---:|---:|---:|
+| Desktop | 620 x 440 | 135 px | 1.0 |
+| Mobile | 92% screen width, 68% screen height | 48-72 px | 0.82 |
+
+### Device API
 
 ```lua
 print(JustHub:GetDeviceMode())
