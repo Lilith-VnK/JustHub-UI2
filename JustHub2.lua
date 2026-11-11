@@ -60,7 +60,7 @@ JustHub.Themes = {
 }
 
 JustHub.Info = {Version = "3.1.2"}
-JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Transparency = 0.1, Locked = false}
+JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Transparency = 0.07, Locked = false}
 JustHub.ConfigData = {}
 JustHub.ControlRegistry = {}
 JustHub.ControlAliases = {}
@@ -124,34 +124,36 @@ JustHub.DesignTokens = {
 local activeTweens = setmetatable({}, {__mode = "k"})
 local chromaRenderConn = nil
 local surfaceRegistry = setmetatable({}, {__mode = "k"})
-
 local function refreshTransparencyTokens()
     local base = math.clamp(
-        tonumber(JustHub.Save.Transparency) or 0.03,
+        tonumber(JustHub.Save.Transparency) or 0.07,
         0,
-        0.85
+        0.14
     )
 
     local function derive(offset)
-        return math.clamp(base + offset, 0, 0.85)
+        return math.clamp(base + offset, 0, 0.18)
     end
 
     local t = JustHub.DesignTokens.Transparency
 
     t.MainWindow   = base
-    t.Sidebar      = derive(0.005)
-    t.Content      = derive(0.005)
-    t.TabActive    = derive(0.005)
-    t.TabHover     = derive(0.010)
-    t.TabInactive  = derive(0.020)
-    t.Section      = derive(0.005)
-    t.Control      = derive(0.010)
-    t.Input        = derive(0.005)
-    t.Popup        = base
-    t.Notification = base
-    t.Button       = derive(0.010)
+    t.Header       = derive(0.00)
+    t.Sidebar      = derive(0.01)
+    t.Content      = derive(-0.02)
+    t.TabActive    = derive(-0.01)
+    t.TabHover     = derive(0.02)
+    t.TabInactive  = derive(0.04)
+    t.Section      = derive(0.04)
+    t.Control      = derive(-0.01)
+    t.Input        = derive(-0.03)
+    t.Popup        = derive(-0.02)
+    t.Notification = derive(0.01)
+    t.Button       = derive(0.01)
+    t.Secondary    = derive(0.04)
+
+    JustHub.Save.Transparency = base
 end
-JustHub.Save.Transparency = 0.03
 refreshTransparencyTokens()
 
 local function surfaceTransparency(kind)
@@ -186,6 +188,7 @@ local function classifySurface(className, props, parent)
     if name == "Sidebar" then return "Sidebar" end
     if name == "ContentContainer" then return "Content" end
     if name == "SearchFrame" then return "Input" end
+    if className == "Frame" and string.find(name, "Dropdown", 1, true) then return "Popup" end
     if className == "Frame" and parent and string.find(parent.Name, "Dropdown", 1, true) then return "Popup" end
     if hasAncestorName(parent, "NotificationContainer") and className == "Frame" and parent and parent.Name == "NotificationContainer" then
         return "Notification"
@@ -206,7 +209,14 @@ local function classifySurface(className, props, parent)
 end
 
 local function setSurfaceKind(obj, kind)
-    if obj and kind then surfaceRegistry[obj] = {Kind = kind} end
+    if obj and kind then
+        surfaceRegistry[obj] = {Kind = kind}
+        pcall(function()
+            if obj:IsA("GuiObject") then
+                obj.BackgroundTransparency = surfaceTransparency(kind)
+            end
+        end)
+    end
     return obj
 end
 
@@ -614,7 +624,7 @@ function JustHub:LocalizeText(textKey) return (self.Localization[self.CurrentLan
 
 local function createDropdownScaffolding(parent, title, defaultText)
     local frame = createInstance("Frame", {
-        Name = title .. "Dropdown", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.15,
+        Name = title .. "Dropdown", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = surfaceTransparency("Popup"),
         ClipsDescendants = false, BorderSizePixel = 0, ZIndex = 1
     }, parent)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
@@ -656,9 +666,10 @@ local SectionMethods = {}
 function SectionMethods:addMenu(name)
     local menuName = (name ~= nil) and tostring(name) or "Menu"
     local frame = createInstance("Frame", {
-        Name = menuName, Size = UDim2.new(1, 0, 0, 44), BackgroundTransparency = 0.15,
+        Name = menuName, Size = UDim2.new(1, 0, 0, 44), BackgroundTransparency = surfaceTransparency("Secondary"),
         BorderSizePixel = 0, ClipsDescendants = true
     }, self.Content)
+    registerSurface(frame, "Secondary")
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
     createInstance("UICorner", {CornerRadius = UDim.new(0, 10)}, frame)
     addBorder(frame, "Color Stroke", 1)
@@ -697,7 +708,7 @@ function SectionMethods:addToggle(options)
     local callback  = options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
     local frame = createInstance("Frame", {
-        Name = title .. "Toggle", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.08, BorderSizePixel = 0
+        Name = title .. "Toggle", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0
     }, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
     createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame)
@@ -778,7 +789,7 @@ function SectionMethods:addSlider(options)
     default = snapVal(default)
     local frame = createInstance("Frame", {
         Name = title .. "Slider", Size = UDim2.new(1, 0, 0, 48),
-        BackgroundTransparency = 0.08, BorderSizePixel = 0
+        BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0
     }, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
     createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame)
@@ -906,7 +917,7 @@ function SectionMethods:addTextBox(options)
     local controlId = makeControlId(self._tabName, self._sectionName, title)
     local frame = createInstance("Frame", {
         Name = title .. "TextBox", Size = UDim2.new(1, 0, 0, 44),
-        BackgroundTransparency = 0.08, BorderSizePixel = 0, Active = false
+        BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0, Active = false
     }, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
     createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame)
@@ -1210,7 +1221,7 @@ function SectionMethods:addColorPicker(options)
     local default  = typeof(options.Default) == "Color3" and options.Default or Color3.fromRGB(255, 255, 255)
     local callback = options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
-    local frame = createInstance("Frame", {Name = title .. "ColorPicker", Size = UDim2.new(1, 0, 0, 80), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = title .. "ColorPicker", Size = UDim2.new(1, 0, 0, 80), BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2")
     createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
     local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(1, -20, 0, 24), Position = UDim2.new(0, 10, 0, 2), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
@@ -1273,7 +1284,7 @@ function SectionMethods:addScriptBox(options)
     local default  = type(options.Default) == "string" and options.Default or ""
     local callback = options.Callback or function() end
     local controlId = makeControlId(self._tabName, self._sectionName, title)
-    local frame = createInstance("Frame", {Name = title .. "ScriptBox", Size = UDim2.new(1, 0, 0, 96), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = title .. "ScriptBox", Size = UDim2.new(1, 0, 0, 96), BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
     local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(1, -10, 0, 20), Position = UDim2.new(0, 10, 0, 4), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
     applyTheme(label, "TextColor3", "Color Text")
@@ -1318,7 +1329,7 @@ function SectionMethods:addBind(options)
         [Enum.KeyCode.Space] = true, [Enum.KeyCode.Escape] = true, [Enum.KeyCode.Tab] = true,
         [Enum.KeyCode.Backspace] = true, [Enum.KeyCode.Return] = true, [Enum.KeyCode.Unknown] = true
     }
-    local frame = createInstance("Frame", {Name = title .. "BindControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = title .. "BindControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
     local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(0.6, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
     applyTheme(label, "TextColor3", "Color Text")
@@ -1401,7 +1412,7 @@ function SectionMethods:addButton(options)
     local title    = options.Name or "Button"
     local btnText  = options.ButtonText or "Click"
     local callback = options.Callback or function() end
-    local frame = createInstance("Frame", {Name = title .. "ButtonControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = title .. "ButtonControl", Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
     local label = createInstance("TextLabel", {Text = title, Size = UDim2.new(0.6, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, frame)
     applyTheme(label, "TextColor3", "Color Text")
@@ -1423,7 +1434,7 @@ function SectionMethods:addButton(options)
 end
 
 function SectionMethods:addConfigManager()
-    local frame = createInstance("Frame", {Name = "ConfigManager", Size = UDim2.new(1, 0, 0, 105), BackgroundTransparency = 0.08, BorderSizePixel = 0}, self.Content)
+    local frame = createInstance("Frame", {Name = "ConfigManager", Size = UDim2.new(1, 0, 0, 105), BackgroundTransparency = surfaceTransparency("Control"), BorderSizePixel = 0}, self.Content)
     applyTheme(frame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, frame); addBorder(frame, "Color Stroke", 1)
     local inputBox = createInstance("TextBox", {Text = "DefaultConfig", Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 10), Font = Enum.Font.Gotham, TextSize = 13, ClearTextOnFocus = false, PlaceholderText = "Config Name..."}, frame)
     applyTheme(inputBox, "BackgroundColor3", "Color Hub 1"); applyTheme(inputBox, "TextColor3", "Color Text"); createInstance("UICorner", {CornerRadius = UDim.new(0, 4)}, inputBox); addBorder(inputBox, "Color Stroke", 1)
@@ -1481,8 +1492,9 @@ function JustHub:CreateWindow(options)
     local mainFrame = createInstance("Frame", {
         Name = "MainFrame", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, initialWidth, 0, initialHeight),
-        BackgroundTransparency = JustHub.Save.Transparency, BorderSizePixel = 0, ClipsDescendants = true, Active = true, ZIndex = 1
+        BackgroundTransparency = surfaceTransparency("MainWindow"), BorderSizePixel = 0, ClipsDescendants = true, Active = true, ZIndex = 1
     }, screenGui)
+    registerSurface(mainFrame, "MainWindow")
     applyTheme(mainFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, JustHub.DesignTokens.Geometry.WindowRadius)}, mainFrame)
     local mainBorder = addBorder(mainFrame, "Color Stroke", 1); registerChroma(mainBorder, "Color", "Color Stroke")
     local topBar = createInstance("Frame", {Name = "TopBar", Size = UDim2.new(1, 0, 0, 52), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
@@ -1529,7 +1541,7 @@ function JustHub:CreateWindow(options)
     registerSurface(contentContainer, "Content")
     createInstance("UICorner", {CornerRadius = UDim.new(0, 12)}, contentContainer)
     addBorder(contentContainer, "Color Stroke", 1)
-    local searchFrame = createInstance("Frame", {Name = "SearchFrame", Size = UDim2.new(1, 0, 0, 32), Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0.08, BorderSizePixel = 0, ZIndex = 2}, contentContainer)
+    local searchFrame = createInstance("Frame", {Name = "SearchFrame", Size = UDim2.new(1, 0, 0, 32), Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = surfaceTransparency("Input"), BorderSizePixel = 0, ZIndex = 2}, contentContainer)
     applyTheme(searchFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, searchFrame); addBorder(searchFrame, "Color Stroke", 1)
     local searchIcon = createInstance("ImageLabel", {Name = "SearchIcon", Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(0, 11, 0.5, -7), BackgroundTransparency = 1, Image = JustHub.Icons.search, ImageTransparency = 0.15, ZIndex = 3}, searchFrame)
     applyTheme(searchIcon, "ImageColor3", "Color Dark Text")
@@ -1804,7 +1816,7 @@ function JustHub:CreateWindow(options)
             local secFrame = createInstance("Frame", {
                 Name = sectionName,
                 Size = UDim2.new(1, -4, 0, 48),
-                BackgroundTransparency = 0.22,
+                BackgroundTransparency = surfaceTransparency("Section"),
                 ClipsDescendants = false,
                 LayoutOrder = #tabObj.Sections + 1,
                 ZIndex = 2
@@ -2028,7 +2040,7 @@ function JustHub:ToggleUIVisibility()
 end
 
 function JustHub:SetTransparency(alpha)
-    alpha = math.clamp(tonumber(alpha) or 0.15, 0, 1)
+    alpha = math.clamp(tonumber(alpha) or 0.07, 0, 0.14)
     self.Save.Transparency = alpha
     refreshTransparencyTokens()
     for obj, record in pairs(surfaceRegistry) do
@@ -2058,7 +2070,7 @@ function JustHub:Notify(options)
     local duration = math.max(0, tonumber(options.Duration) or 5)
     local showProgress = options.ShowProgress == true
     if not self.NotificationContainer or not isAlive() then return end
-    local notifFrame = createInstance("Frame", {Name = "NotificationSurface", Size = UDim2.new(0, 300, 0, 0), BackgroundTransparency = 0.15, ClipsDescendants = true}, self.NotificationContainer)
+    local notifFrame = createInstance("Frame", {Name = "NotificationSurface", Size = UDim2.new(0, 300, 0, 0), BackgroundTransparency = surfaceTransparency("Notification"), ClipsDescendants = true}, self.NotificationContainer)
     applyTheme(notifFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 8)}, notifFrame); addBorder(notifFrame, "Color Stroke", 1)
     local titleLabel = createInstance("TextLabel", {Text = title, Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 10, 0, 10), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left}, notifFrame)
     applyTheme(titleLabel, "TextColor3", "Color Text")
