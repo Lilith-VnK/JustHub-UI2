@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-3.1.0-8A2BE2?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Version-3.1.1-8A2BE2?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Language-Luau-00A2FF?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Interface-Modern%20Glass-20C997?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Status-Development-orange?style=for-the-badge" />
@@ -16,10 +16,6 @@
 JustHub UI is a customizable Roblox GUI framework designed to provide a clean, lightweight, and visually consistent interface for Roblox client-side projects.
 
 It combines a modern glass-inspired design with a flexible component system, customizable themes, interactive controls, configuration management, and built-in UI utilities.
-
-## Version
-
-Current version: **3.1.0 (Modern Glass Surface)**
 
 ## Documentation
 
