@@ -60,7 +60,7 @@ JustHub.Themes = {
 }
 
 JustHub.Info = {Version = "1.1.2"}
-JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Transparency = 0.07, Locked = false}
+JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Locked = false, Transparency = 0.06}
 JustHub.ConfigData = {}
 JustHub.ControlRegistry = {}
 JustHub.ControlAliases = {}
@@ -118,39 +118,43 @@ JustHub.DesignTokens = {
         TabTransition = 0.24, PopupTransition = 0.24,
         ToggleTransition = 0.22, NotificationTransition = 0.30,
     },
-    Opacity = {Border = 0.58, MutedIcon = 0.22},
+    Opacity = {Border = 0.20, MutedIcon = 0.22},
 }
 
 local activeTweens = setmetatable({}, {__mode = "k"})
 local chromaRenderConn = nil
 local surfaceRegistry = setmetatable({}, {__mode = "k"})
-local function refreshTransparencyTokens()
-    local base = math.clamp(
-        tonumber(JustHub.Save.Transparency) or 0.07,
-        0,
-        0.14
-    )
+local TRANSPARENCY_BASELINE = {
+    MainWindow = 0.06,
+    Header = 0.06,
+    Sidebar = 0.05,
+    Content = 0.04,
+    TabActive = 0.05,
+    TabHover = 0.07,
+    TabInactive = 0.10,
+    Section = 0.08,
+    Control = 0.05,
+    Input = 0.03,
+    Dropdown = 0.04,
+    Popup = 0.03,
+    Notification = 0.05,
+    Button = 0.05,
+    Secondary = 0.08,
+}
 
-    local function derive(offset)
-        return math.clamp(base + offset, 0, 0.18)
+local function refreshTransparencyTokens()
+    local requested = tonumber(JustHub.Save.Transparency)
+    if not requested or requested ~= requested or requested == math.huge or requested == -math.huge then
+        requested = TRANSPARENCY_BASELINE.MainWindow
     end
 
-    local t = JustHub.DesignTokens.Transparency
+    local base = math.clamp(requested, 0, 0.14)
+    local delta = base - TRANSPARENCY_BASELINE.MainWindow
+    local tokens = JustHub.DesignTokens.Transparency
 
-    t.MainWindow   = base
-    t.Header       = derive(0.00)
-    t.Sidebar      = derive(0.01)
-    t.Content      = derive(-0.02)
-    t.TabActive    = derive(-0.01)
-    t.TabHover     = derive(0.02)
-    t.TabInactive  = derive(0.04)
-    t.Section      = derive(0.04)
-    t.Control      = derive(-0.01)
-    t.Input        = derive(-0.03)
-    t.Popup        = derive(-0.02)
-    t.Notification = derive(0.01)
-    t.Button       = derive(0.01)
-    t.Secondary    = derive(0.04)
+    for kind, baseline in pairs(TRANSPARENCY_BASELINE) do
+        tokens[kind] = math.clamp(baseline + delta, 0, 0.18)
+    end
 
     JustHub.Save.Transparency = base
 end
@@ -158,7 +162,7 @@ refreshTransparencyTokens()
 
 local function surfaceTransparency(kind)
     local values = JustHub.DesignTokens.Transparency
-    return values[kind] or values.Control or 0.4
+    return values[kind] or values.Control or TRANSPARENCY_BASELINE.Control
 end
 
 local function registerSurface(obj, kind)
@@ -188,8 +192,8 @@ local function classifySurface(className, props, parent)
     if name == "Sidebar" then return "Sidebar" end
     if name == "ContentContainer" then return "Content" end
     if name == "SearchFrame" then return "Input" end
-    if className == "Frame" and string.find(name, "Dropdown", 1, true) then return "Popup" end
-    if className == "Frame" and parent and string.find(parent.Name, "Dropdown", 1, true) then return "Popup" end
+    if className == "Frame" and string.find(name, "Dropdown", 1, true) then return "Dropdown" end
+    if className == "Frame" and parent and string.find(parent.Name, "Dropdown", 1, true) then return "Dropdown" end
     if hasAncestorName(parent, "NotificationContainer") and className == "Frame" and parent and parent.Name == "NotificationContainer" then
         return "Notification"
     end
@@ -261,6 +265,7 @@ local function createInstance(className, props, parent)
             Control = JustHub.DesignTokens.Geometry.ControlRadius,
             Input = JustHub.DesignTokens.Geometry.InputRadius,
             Popup = JustHub.DesignTokens.Geometry.PopupRadius,
+            Dropdown = JustHub.DesignTokens.Geometry.PopupRadius,
             Notification = JustHub.DesignTokens.Geometry.ControlRadius,
             Button = JustHub.DesignTokens.Geometry.ButtonRadius,
         }
@@ -2040,7 +2045,6 @@ function JustHub:ToggleUIVisibility()
 end
 
 function JustHub:SetTransparency(alpha)
-    alpha = math.clamp(tonumber(alpha) or 0.07, 0, 0.14)
     self.Save.Transparency = alpha
     refreshTransparencyTokens()
     for obj, record in pairs(surfaceRegistry) do
