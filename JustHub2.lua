@@ -125,7 +125,7 @@ local activeTweens = setmetatable({}, {__mode = "k"})
 local chromaRenderConn = nil
 local surfaceRegistry = setmetatable({}, {__mode = "k"})
 
-local function refreshTransparencyTokens().
+local function refreshTransparencyTokens()
     local base = math.clamp(tonumber(JustHub.Save.Transparency) or 0.15, 0, 0.85)
     local function derive(offset)
         return math.clamp(base + offset, 0, 0.85)
