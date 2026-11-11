@@ -59,7 +59,7 @@ JustHub.Themes = {
     Midnight = {["Color Hub 1"] = Color3.fromRGB(0, 0, 20),     ["Color Hub 2"] = Color3.fromRGB(5, 5, 30),     ["Color Stroke"] = Color3.fromRGB(0, 0, 80),     ["Color Theme"] = Color3.fromRGB(50, 50, 255),   ["Color Text"] = Color3.fromRGB(250, 250, 255), ["Color Dark Text"] = Color3.fromRGB(190, 190, 220)}
 }
 
-JustHub.Info = {Version = "3.1.2"}
+JustHub.Info = {Version = "1.1.2"}
 JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Transparency = 0.07, Locked = false}
 JustHub.ConfigData = {}
 JustHub.ControlRegistry = {}
