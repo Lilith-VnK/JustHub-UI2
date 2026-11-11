@@ -59,7 +59,7 @@ JustHub.Themes = {
     Midnight = {["Color Hub 1"] = Color3.fromRGB(0, 0, 20),     ["Color Hub 2"] = Color3.fromRGB(5, 5, 30),     ["Color Stroke"] = Color3.fromRGB(0, 0, 80),     ["Color Theme"] = Color3.fromRGB(50, 50, 255),   ["Color Text"] = Color3.fromRGB(250, 250, 255), ["Color Dark Text"] = Color3.fromRGB(190, 190, 220)}
 }
 
-JustHub.Info = {Version = "1.1.2"}
+JustHub.Info = {Version = "1.2.0"}
 JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Locked = false, Transparency = 0.06}
 JustHub.ConfigData = {}
 JustHub.ControlRegistry = {}
@@ -123,58 +123,263 @@ JustHub.DesignTokens = {
 
 local activeTweens = setmetatable({}, {__mode = "k"})
 local chromaRenderConn = nil
-local surfaceRegistry = setmetatable({}, {__mode = "k"})
-local TRANSPARENCY_BASELINE = {
-    MainWindow = 0.06,
-    Header = 0.06,
-    Sidebar = 0.05,
-    Content = 0.04,
-    TabActive = 0.05,
-    TabHover = 0.07,
-    TabInactive = 0.10,
-    Section = 0.08,
-    Control = 0.05,
-    Input = 0.03,
-    Dropdown = 0.04,
-    Popup = 0.03,
-    Notification = 0.05,
-    Button = 0.05,
-    Secondary = 0.08,
+local tweenProperty
+
+local TRANSPARENCY_DEFAULTS = {
+    Window = 0.04,
+    Header = 0.05,
+    Navigation = 0.05,
+    Content = 0.03,
+    Secondary = 0.06,
+    Section = 0.06,
+    Control = 0.04,
+    Input = 0.02,
+    Dropdown = 0.03,
+    Button = 0.04,
+    TabActive = 0.04,
+    TabHover = 0.05,
+    TabInactive = 0.07,
+    Popup = 0.02,
+    Notification = 0.03,
+    Floating = 0.05,
+    Overlay = 0.15,
+    Divider = 0.50,
+    Stroke = 0.20,
+    TextPrimary = 0,
+    TextSecondary = 0,
+    TextMuted = 0.20,
+    Image = 0,
+    ImageMuted = 0.15,
+    CanvasGroup = 0,
 }
 
-local function refreshTransparencyTokens()
-    local requested = tonumber(JustHub.Save.Transparency)
-    if not requested or requested ~= requested or requested == math.huge or requested == -math.huge then
-        requested = TRANSPARENCY_BASELINE.MainWindow
-    end
+local TRANSPARENCY_ALIASES = {
+    MainWindow = "Window",
+    Sidebar = "Navigation",
+    MainContent = "Content",
+    Tab = "TabInactive",
+    FloatingElement = "Floating",
+    BackgroundOverlay = "Overlay",
+    Border = "Stroke",
+}
 
-    local base = math.clamp(requested, 0, 0.14)
-    local delta = base - TRANSPARENCY_BASELINE.MainWindow
-    local tokens = JustHub.DesignTokens.Transparency
+local TRANSPARENCY_PROPERTY_DEFAULTS = {
+    BackgroundTransparency = {
+        Window = true, Header = true, Navigation = true, Content = true,
+        Secondary = true, Section = true, Control = true, Input = true,
+        Dropdown = true, Button = true, TabActive = true, TabHover = true,
+        TabInactive = true, Popup = true, Notification = true,
+        Floating = true, Overlay = true, Divider = true,
+    },
+    TextTransparency = {
+        TextPrimary = true, TextSecondary = true, TextMuted = true,
+    },
+    ImageTransparency = {
+        Image = true, ImageMuted = true,
+    },
+    Transparency = {Stroke = true},
+    GroupTransparency = {CanvasGroup = true},
+}
 
-    for kind, baseline in pairs(TRANSPARENCY_BASELINE) do
-        tokens[kind] = math.clamp(baseline + delta, 0, 0.18)
-    end
+local TransparencyController = {
+    Registry = setmetatable({}, {__mode = "k"}),
+    Revision = 0,
+    SettingDefault = 0.06,
+    SettingMinimum = 0,
+    SettingMaximum = 0.14,
+}
 
-    JustHub.Save.Transparency = base
+local function resolveTransparencyRole(role)
+    if type(role) ~= "string" then return nil end
+    return TRANSPARENCY_ALIASES[role] or role
 end
+
+local function isFiniteNumber(value)
+    return type(value) == "number"
+        and value == value
+        and value ~= math.huge
+        and value ~= -math.huge
+end
+
+local function normalizeTransparencySetting(value, fallback)
+    local numeric = tonumber(value)
+    if not isFiniteNumber(numeric) then
+        numeric = fallback
+    end
+    if not isFiniteNumber(numeric) then
+        numeric = TransparencyController.SettingDefault
+    end
+    return math.clamp(numeric, TransparencyController.SettingMinimum, TransparencyController.SettingMaximum)
+end
+
+function TransparencyController:Get(role, property)
+    local resolvedRole = resolveTransparencyRole(role)
+    if not resolvedRole then return nil end
+    property = property or "BackgroundTransparency"
+    local propertyRoles = TRANSPARENCY_PROPERTY_DEFAULTS[property]
+    if not propertyRoles or not propertyRoles[resolvedRole] then return nil end
+    local baseline = TRANSPARENCY_DEFAULTS[resolvedRole]
+    if not isFiniteNumber(baseline) then return nil end
+    if property == "BackgroundTransparency" and resolvedRole ~= "Divider" then
+        local setting = normalizeTransparencySetting(JustHub.Save.Transparency, self.SettingDefault)
+        local adjustment = setting - self.SettingDefault
+        return math.clamp(baseline + adjustment, 0, 0.18)
+    end
+    return math.clamp(baseline, 0, 1)
+end
+
+function TransparencyController:_isPropertyCompatible(obj, property)
+    local ok, valid = pcall(function()
+        if property == "BackgroundTransparency" then
+            return obj:IsA("GuiObject")
+        elseif property == "TextTransparency" then
+            return obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")
+        elseif property == "ImageTransparency" then
+            return obj:IsA("ImageLabel") or obj:IsA("ImageButton")
+        elseif property == "Transparency" then
+            return obj:IsA("UIStroke")
+        elseif property == "GroupTransparency" then
+            return obj:IsA("CanvasGroup")
+        end
+        return false
+    end)
+    return ok and valid == true
+end
+
+function TransparencyController:Register(obj, role, property)
+    property = property or "BackgroundTransparency"
+    local resolvedRole = resolveTransparencyRole(role)
+    local tokenValue = self:Get(resolvedRole, property)
+    if not obj or not resolvedRole or tokenValue == nil then return false end
+    if not self:_isPropertyCompatible(obj, property) then return false end
+    local parentOk, parent = pcall(function() return obj.Parent end)
+    if not parentOk or parent == nil then return false end
+    local record = self.Registry[obj]
+    if not record then
+        record = {}
+        self.Registry[obj] = record
+    end
+    record[property] = {Role = resolvedRole}
+    local ok, err = pcall(function()
+        if obj[property] ~= tokenValue then
+            obj[property] = tokenValue
+        end
+    end)
+    if not ok then
+        record[property] = nil
+        if not next(record) then self.Registry[obj] = nil end
+        warn("[JustHub] Failed to register transparency for " .. tostring(obj) .. ": " .. tostring(err))
+        return false
+    end
+    return true
+end
+
+function TransparencyController:Unregister(obj, property)
+    local record = obj and self.Registry[obj]
+    if not record then return false end
+    if property then
+        record[property] = nil
+        if not next(record) then self.Registry[obj] = nil end
+    else
+        self.Registry[obj] = nil
+    end
+    return true
+end
+
+function TransparencyController:Refresh()
+    self.Revision = self.Revision + 1
+    for obj, properties in pairs(self.Registry) do
+        local alive, parent = pcall(function()
+            return obj.Parent
+        end)
+        if not alive or parent == nil then
+            self.Registry[obj] = nil
+        else
+            local tweenRecord = activeTweens[obj]
+            if tweenRecord then
+                local filteredGoal = {}
+                local overlapsTransparency = false
+                for tweenPropertyName, targetValue in pairs(tweenRecord.Goal) do
+                    if properties[tweenPropertyName] then
+                        overlapsTransparency = true
+                    else
+                        filteredGoal[tweenPropertyName] = targetValue
+                    end
+                end
+                if overlapsTransparency then
+                    activeTweens[obj] = nil
+                    pcall(function() tweenRecord.Tween:Cancel() end)
+                    if next(filteredGoal) then
+                        local remaining = math.max(0, tweenRecord.Duration - (os.clock() - tweenRecord.StartedAt))
+                        if remaining > 0 then
+                            tweenProperty(
+                                obj,
+                                filteredGoal,
+                                remaining,
+                                tweenRecord.EasingStyle,
+                                tweenRecord.EasingDirection
+                            )
+                        else
+                            for tweenPropertyName, targetValue in pairs(filteredGoal) do
+                                pcall(function() obj[tweenPropertyName] = targetValue end)
+                            end
+                        end
+                    end
+                end
+            end
+            for property, record in pairs(properties) do
+                local value = record and self:Get(record.Role, property)
+                if value ~= nil then
+                    pcall(function()
+                        if obj[property] ~= value then
+                            obj[property] = value
+                        end
+                    end)
+                else
+                    properties[property] = nil
+                end
+            end
+            if not next(properties) then
+                self.Registry[obj] = nil
+            end
+        end
+    end
+end
+
+local function refreshTransparencyTokens()
+    JustHub.Save.Transparency = normalizeTransparencySetting(
+        JustHub.Save.Transparency,
+        TransparencyController.SettingDefault
+    )
+    local tokens = JustHub.DesignTokens.Transparency
+    for role, baseline in pairs(TRANSPARENCY_DEFAULTS) do
+        tokens[role] = TransparencyController:Get(role, TRANSPARENCY_PROPERTY_DEFAULTS.BackgroundTransparency[role]
+            and "BackgroundTransparency"
+            or (TRANSPARENCY_PROPERTY_DEFAULTS.TextTransparency[role] and "TextTransparency"
+            or (TRANSPARENCY_PROPERTY_DEFAULTS.ImageTransparency[role] and "ImageTransparency"
+            or (TRANSPARENCY_PROPERTY_DEFAULTS.Transparency[role] and "Transparency" or "GroupTransparency")))) or baseline
+    end
+    for alias, role in pairs(TRANSPARENCY_ALIASES) do
+        tokens[alias] = tokens[role]
+    end
+    JustHub.DesignTokens.Opacity.Border = tokens.Stroke
+end
+
 refreshTransparencyTokens()
 
 local function surfaceTransparency(kind)
-    local values = JustHub.DesignTokens.Transparency
-    return values[kind] or values.Control or TRANSPARENCY_BASELINE.Control
+    return TransparencyController:Get(kind, "BackgroundTransparency")
+        or JustHub.DesignTokens.Transparency.Control
+        or TRANSPARENCY_DEFAULTS.Control
+end
+
+local function registerTransparency(obj, role, property)
+    TransparencyController:Register(obj, role, property)
+    return obj
 end
 
 local function registerSurface(obj, kind)
-    if not obj or not kind then return obj end
-    local ok = pcall(function()
-        if obj:IsA("GuiObject") then
-            surfaceRegistry[obj] = {Kind = kind}
-            obj.BackgroundTransparency = surfaceTransparency(kind)
-        end
-    end)
-    if not ok then surfaceRegistry[obj] = nil end
-    return obj
+    return registerTransparency(obj, kind, "BackgroundTransparency")
 end
 
 local function hasAncestorName(parent, targetName)
@@ -188,40 +393,62 @@ end
 
 local function classifySurface(className, props, parent)
     local name = props and props.Name or ""
-    if name == "MainFrame" then return "MainWindow" end
-    if name == "Sidebar" then return "Sidebar" end
+    local background = props and props.BackgroundTransparency
+    local hasSurfaceBackground = background == nil or (type(background) == "number" and background < 1)
+
+    if name == "MainFrame" then return "Window" end
+    if name == "Sidebar" then return "Navigation" end
     if name == "ContentContainer" then return "Content" end
-    if name == "SearchFrame" then return "Input" end
-    if className == "Frame" and string.find(name, "Dropdown", 1, true) then return "Dropdown" end
-    if className == "Frame" and parent and string.find(parent.Name, "Dropdown", 1, true) then return "Dropdown" end
-    if hasAncestorName(parent, "NotificationContainer") and className == "Frame" and parent and parent.Name == "NotificationContainer" then
+    if name == "TopBar" and hasSurfaceBackground then return "Header" end
+    if name == "SearchFrame" and hasSurfaceBackground then return "Input" end
+
+    if className == "Frame" and hasSurfaceBackground and string.find(name, "Popup", 1, true) then
+        return "Popup"
+    end
+    if className == "Frame" and hasSurfaceBackground
+        and (string.find(name, "Tooltip", 1, true) or string.find(name, "Floating", 1, true)) then
+        return "Floating"
+    end
+    if className == "Frame" and hasSurfaceBackground and string.find(name, "Dropdown", 1, true) then
+        return "Dropdown"
+    end
+    if className == "Frame" and hasSurfaceBackground and parent
+        and string.find(parent.Name, "Dropdown", 1, true) then
+        return "Dropdown"
+    end
+    if className == "Frame" and hasSurfaceBackground and parent
+        and parent.Name == "NotificationContainer" then
         return "Notification"
     end
-    if parent and parent.Name == "Sidebar" and className == "TextButton" then return "TabInactive" end
-    if className == "Frame" and parent and parent.Name == "SectionContent"
-        and props and props.BackgroundTransparency ~= 1 then return "Control" end
-    if className == "Frame" and parent and parent:IsA("ScrollingFrame")
-        and string.sub(parent.Name, -7) == "Content" then return "Section" end
-    if className == "TextBox" and (hasAncestorName(parent, "SectionContent") or hasAncestorName(parent, "Body")) then
+    if parent and parent.Name == "Sidebar" and className == "TextButton" then
+        return "TabInactive"
+    end
+    if className == "Frame" and hasSurfaceBackground and parent
+        and parent.Name == "SectionContent" then
+        if string.find(name, "TextBox", 1, true) then return "Input" end
+        return "Control"
+    end
+    if className == "Frame" and hasSurfaceBackground and parent and parent:IsA("ScrollingFrame")
+        and string.sub(parent.Name, -7) == "Content" then
+        return "Section"
+    end
+    if className == "TextBox" and hasSurfaceBackground
+        and (hasAncestorName(parent, "SectionContent") or hasAncestorName(parent, "Body")) then
         return "Input"
     end
-    if className == "TextButton" and props and type(props.Text) == "string" and props.Text ~= ""
-        and props.BackgroundTransparency ~= 1 and hasAncestorName(parent, "SectionContent") then return "Button" end
-    if props and type(props.BackgroundTransparency) == "number" and props.BackgroundTransparency < 1
-        and hasAncestorName(parent, "SectionContent") then return "Control" end
+    if (className == "TextButton" or className == "ImageButton") and hasSurfaceBackground
+        and hasAncestorName(parent, "SectionContent") then
+        return "Button"
+    end
+    if hasSurfaceBackground and type(background) == "number" and background < 1
+        and hasAncestorName(parent, "SectionContent") then
+        return "Control"
+    end
     return nil
 end
 
 local function setSurfaceKind(obj, kind)
-    if obj and kind then
-        surfaceRegistry[obj] = {Kind = kind}
-        pcall(function()
-            if obj:IsA("GuiObject") then
-                obj.BackgroundTransparency = surfaceTransparency(kind)
-            end
-        end)
-    end
-    return obj
+    return registerSurface(obj, kind)
 end
 
 local function isAlive() return not JustHub._destroyed end
@@ -254,10 +481,13 @@ local function trackScreenGui(sg)
 end
 
 local function createInstance(className, props, parent)
-    if className == "UICorner" and parent and surfaceRegistry[parent] then
+    local parentTransparencyRecord = parent and TransparencyController.Registry[parent]
+    local parentSurfaceRecord = parentTransparencyRecord and parentTransparencyRecord.BackgroundTransparency
+    if className == "UICorner" and parentSurfaceRecord then
         local radiusByKind = {
-            MainWindow = JustHub.DesignTokens.Geometry.WindowRadius,
-            Sidebar = JustHub.DesignTokens.Geometry.SidebarRadius,
+            Window = JustHub.DesignTokens.Geometry.WindowRadius,
+            Header = JustHub.DesignTokens.Geometry.WindowRadius,
+            Navigation = JustHub.DesignTokens.Geometry.SidebarRadius,
             Content = 12,
             TabActive = JustHub.DesignTokens.Geometry.TabRadius,
             TabInactive = JustHub.DesignTokens.Geometry.TabRadius,
@@ -268,8 +498,9 @@ local function createInstance(className, props, parent)
             Dropdown = JustHub.DesignTokens.Geometry.PopupRadius,
             Notification = JustHub.DesignTokens.Geometry.ControlRadius,
             Button = JustHub.DesignTokens.Geometry.ButtonRadius,
+            Secondary = JustHub.DesignTokens.Geometry.SectionRadius,
         }
-        local radius = radiusByKind[surfaceRegistry[parent].Kind]
+        local radius = radiusByKind[parentSurfaceRecord.Role]
         local isPill = props and props.CornerRadius and props.CornerRadius.Scale >= 1
         if radius and not isPill then
             props = shallowClone(props)
@@ -304,14 +535,29 @@ local function connectOnce(signal, callback)
     return connection
 end
 
-local function tweenProperty(guiObject, goal, time, easingStyle, easingDirection)
+tweenProperty = function(guiObject, goal, time, easingStyle, easingDirection)
     if not guiObject or not guiObject.Parent then return nil end
-    if activeTweens[guiObject] then activeTweens[guiObject]:Cancel() end
-    local ti = TweenInfo.new(time or JustHub.DesignTokens.Animation.General, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out)
+    local previous = activeTweens[guiObject]
+    if previous then
+        activeTweens[guiObject] = nil
+        pcall(function() previous.Tween:Cancel() end)
+    end
+    local duration = time or JustHub.DesignTokens.Animation.General
+    local style = easingStyle or Enum.EasingStyle.Quad
+    local direction = easingDirection or Enum.EasingDirection.Out
+    local ti = TweenInfo.new(duration, style, direction)
     local tween = TweenService:Create(guiObject, ti, goal)
-    activeTweens[guiObject] = tween
+    local record = {
+        Tween = tween,
+        Goal = shallowClone(goal),
+        Duration = duration,
+        EasingStyle = style,
+        EasingDirection = direction,
+        StartedAt = os.clock(),
+    }
+    activeTweens[guiObject] = record
     connectOnce(tween.Completed, function()
-        if activeTweens[guiObject] == tween then activeTweens[guiObject] = nil end
+        if activeTweens[guiObject] == record then activeTweens[guiObject] = nil end
     end)
     tween:Play()
     return tween
@@ -352,7 +598,8 @@ function JustHub:UpdateThemeObject(obj, prop, newThemeKey)
 end
 
 local function addBorder(obj, themeKey, thickness)
-    local stroke = createInstance("UIStroke", {Thickness = thickness, Transparency = JustHub.DesignTokens.Opacity.Border}, obj)
+    local stroke = createInstance("UIStroke", {Thickness = thickness, Transparency = TransparencyController:Get("Stroke", "Transparency") or JustHub.DesignTokens.Opacity.Border}, obj)
+    registerTransparency(stroke, "Stroke", "Transparency")
     applyTheme(stroke, "Color", themeKey)
     return stroke
 end
@@ -1502,7 +1749,9 @@ function JustHub:CreateWindow(options)
     registerSurface(mainFrame, "MainWindow")
     applyTheme(mainFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, JustHub.DesignTokens.Geometry.WindowRadius)}, mainFrame)
     local mainBorder = addBorder(mainFrame, "Color Stroke", 1); registerChroma(mainBorder, "Color", "Color Stroke")
-    local topBar = createInstance("Frame", {Name = "TopBar", Size = UDim2.new(1, 0, 0, 52), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    local topBar = createInstance("Frame", {Name = "TopBar", Size = UDim2.new(1, 0, 0, 52), BackgroundTransparency = surfaceTransparency("Header"), BorderSizePixel = 0, ZIndex = 2}, mainFrame)
+    applyTheme(topBar, "BackgroundColor3", "Color Hub 2")
+    registerSurface(topBar, "Header")
     local titleLabel = createInstance("TextLabel", {Name = "TitleLabel", Text = winName, Size = UDim2.new(0.62, 0, 0, 22), Position = UDim2.new(0, 20, 0, 4), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, topBar)
     applyTheme(titleLabel, "TextColor3", "Color Text")
     local subtitleLabel = createInstance("TextLabel", {Name = "SubtitleLabel", Text = subTitle, Size = UDim2.new(0.62, 0, 0, 15), Position = UDim2.new(0, 20, 0, 27), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, topBar)
@@ -1529,6 +1778,7 @@ function JustHub:CreateWindow(options)
     applyTheme(lockBtn, "TextColor3", "Color Text")
     local headerSep = createInstance("Frame", {Size = UDim2.new(1, -40, 0, 1), Position = UDim2.new(0, 20, 0, 52), BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
     applyTheme(headerSep, "BackgroundColor3", "Color Stroke")
+    registerTransparency(headerSep, "Divider", "BackgroundTransparency")
     local profileFrame = createInstance("Frame", {Name = "ProfileFrame", Size = UDim2.new(0, JustHub.Save.TabSize, 0, 46), Position = UDim2.new(0, 20, 0, 62), BackgroundTransparency = 1, ZIndex = 2}, mainFrame)
     local avatarImg = createInstance("ImageLabel", {Size = UDim2.new(0, 36, 0, 36), Position = UDim2.new(0, 0, 0.5, -18), BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 2}, profileFrame)
     applyTheme(avatarImg, "BackgroundColor3", "Color Hub 1"); createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, avatarImg)
@@ -1550,12 +1800,14 @@ function JustHub:CreateWindow(options)
     applyTheme(searchFrame, "BackgroundColor3", "Color Hub 2"); createInstance("UICorner", {CornerRadius = UDim.new(0, 6)}, searchFrame); addBorder(searchFrame, "Color Stroke", 1)
     local searchIcon = createInstance("ImageLabel", {Name = "SearchIcon", Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(0, 11, 0.5, -7), BackgroundTransparency = 1, Image = JustHub.Icons.search, ImageTransparency = 0.15, ZIndex = 3}, searchFrame)
     applyTheme(searchIcon, "ImageColor3", "Color Dark Text")
+    registerTransparency(searchIcon, "ImageMuted", "ImageTransparency")
     local searchBox = createInstance("TextBox", {Size = UDim2.new(1, -42, 1, 0), Position = UDim2.new(0, 34, 0, 0), Font = Enum.Font.Gotham, TextSize = 12, PlaceholderText = "Search controls...", ClearTextOnFocus = false, BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3}, searchFrame)
     applyTheme(searchBox, "TextColor3", "Color Text"); applyTheme(searchBox, "PlaceholderColor3", "Color Dark Text")
     local tabsContainer = createInstance("Frame", {Name = "TabsContainer", Size = UDim2.new(1, 0, 1, -40), Position = UDim2.new(0, 0, 0, 38), BackgroundTransparency = 1, ZIndex = 2}, contentContainer)
     local footer = createInstance("Frame", {Name = "Footer", Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -20), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2}, mainFrame)
     local watermark = createInstance("TextLabel", {Name = "Watermark", Text = "JustHub  •  " .. player.DisplayName, Size = UDim2.new(0, 220, 1, 0), Position = UDim2.new(0, 20, 0, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 10, TextTransparency = 0.2, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2}, footer)
     applyTheme(watermark, "TextColor3", "Color Dark Text")
+    registerTransparency(watermark, "TextMuted", "TextTransparency")
     local fpsLabel = createInstance("TextLabel", {Name = "FPSLabel", Text = "FPS: --", Size = UDim2.new(0, 100, 1, 0), Position = UDim2.new(1, -20, 0, 0), AnchorPoint = Vector2.new(1, 0), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 2}, footer)
     applyTheme(fpsLabel, "TextColor3", "Color Dark Text")
     local lastTime, frameCount = os.clock(), 0
@@ -1913,13 +2165,21 @@ function JustHub:ShowLoadingScreen(duration, callback)
     applyTheme(barFill, "BackgroundColor3", "Color Theme"); createInstance("UICorner", {CornerRadius = UDim.new(1, 0)}, barFill)
     local tween = tweenProperty(barFill, {Size = UDim2.new(1, 0, 1, 0)}, duration)
     local titleTween = TweenService:Create(titleLabel, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {TextTransparency = 0.5})
-    activeTweens[titleLabel] = titleTween
+    local titleTweenRecord = {
+        Tween = titleTween,
+        Goal = {TextTransparency = 0.5},
+        Duration = math.huge,
+        EasingStyle = Enum.EasingStyle.Sine,
+        EasingDirection = Enum.EasingDirection.InOut,
+        StartedAt = os.clock(),
+    }
+    activeTweens[titleLabel] = titleTweenRecord
     titleTween:Play()
     if tween then
         connectOnce(tween.Completed, function()
             if not isAlive() then return end
             titleTween:Cancel()
-            if activeTweens[titleLabel] == titleTween then activeTweens[titleLabel] = nil end
+            if activeTweens[titleLabel] == titleTweenRecord then activeTweens[titleLabel] = nil end
             task.wait(0.3)
             local fade = tweenProperty(bgOverlay, {BackgroundTransparency = 1}, 0.5)
             tweenProperty(titleLabel, {TextTransparency = 1}, 0.5)
@@ -1988,7 +2248,17 @@ function JustHub:SaveConfig(fileName)
     end
     local success, err = pcall(function()
         if writefile then
-            local json = HttpService:JSONEncode(serializeConfig(JustHub.ConfigData))
+            local configToSave = shallowClone(JustHub.ConfigData)
+            local metadataKey = "__JustHubMeta"
+            while configToSave[metadataKey] ~= nil do
+                metadataKey = metadataKey .. "_"
+            end
+            configToSave[metadataKey] = {
+                __JustHubInternal = "TransparencySettings",
+                Version = 2,
+                Transparency = JustHub.Save.Transparency,
+            }
+            local json = HttpService:JSONEncode(serializeConfig(configToSave))
             writefile(fileName, json)
             StarterGui:SetCore("SendNotification", {Title = "Save Config", Text = "Success save at " .. fileName, Duration = 5})
         else
@@ -2010,7 +2280,23 @@ function JustHub:LoadConfig(fileName)
         if readfile then
             local data = readfile(fileName)
             config = deserializeConfig(HttpService:JSONDecode(data))
+            if type(config) ~= "table" then error("Config root must be a table") end
+            local metadata
+            for key, value in pairs(config) do
+                if type(value) == "table" and value.__JustHubInternal == "TransparencySettings" and value.Version == 2 then
+                    metadata = value
+                    config[key] = nil
+                    break
+                end
+            end
             JustHub.ConfigData = config
+            if type(metadata) == "table" and metadata.Transparency ~= nil then
+                local savedTransparency = tonumber(metadata.Transparency)
+                if not isFiniteNumber(savedTransparency) then
+                    savedTransparency = TransparencyController.SettingDefault
+                end
+                JustHub:SetTransparency(savedTransparency)
+            end
             JustHub:ApplyConfig(config)
             StarterGui:SetCore("SendNotification", {Title = "Load Config", Text = "Success load from " .. fileName, Duration = 5})
         else
@@ -2044,20 +2330,22 @@ function JustHub:ToggleUIVisibility()
     if self.ScreenGui and self.ScreenGui.Parent then self.ScreenGui.Enabled = not self.ScreenGui.Enabled end
 end
 
+function JustHub:RegisterTransparency(obj, role, property)
+    return TransparencyController:Register(obj, role, property)
+end
+
+function JustHub:UnregisterTransparency(obj, property)
+    return TransparencyController:Unregister(obj, property)
+end
+
 function JustHub:SetTransparency(alpha)
-    self.Save.Transparency = alpha
-    refreshTransparencyTokens()
-    for obj, record in pairs(surfaceRegistry) do
-        if obj and obj.Parent and record then
-            if activeTweens[obj] then
-                pcall(function() activeTweens[obj]:Cancel() end)
-                activeTweens[obj] = nil
-            end
-            pcall(function() obj.BackgroundTransparency = surfaceTransparency(record.Kind) end)
-        else
-            surfaceRegistry[obj] = nil
-        end
+    local numeric = tonumber(alpha)
+    if not isFiniteNumber(numeric) then
+        return false, "Transparency must be a finite number"
     end
+    self.Save.Transparency = normalizeTransparencySetting(numeric, self.Save.Transparency)
+    refreshTransparencyTokens()
+    TransparencyController:Refresh()
     return true
 end
 
@@ -2127,8 +2415,9 @@ function JustHub:Destroy()
     self._initializing = false
     for _, conn in ipairs(self.Connections) do pcall(function() conn:Disconnect() end) end
     table.clear(self.Connections)
-    for _, tween in pairs(activeTweens) do
-        pcall(function() tween:Cancel() end)
+    for _, tweenRecord in pairs(activeTweens) do
+        local tween = type(tweenRecord) == "table" and tweenRecord.Tween or tweenRecord
+        if tween then pcall(function() tween:Cancel() end) end
     end
     table.clear(activeTweens)
     if self._promoThread then
@@ -2142,7 +2431,7 @@ function JustHub:Destroy()
     for _, sg in ipairs(self.ScreenGuis) do pcall(function() sg:Destroy() end) end
     table.clear(self.ScreenGuis)
     table.clear(self.ThemeObjects)
-    table.clear(surfaceRegistry)
+    table.clear(TransparencyController.Registry)
     table.clear(self.ChromaObjects)
     table.clear(self.ControlRegistry)
     table.clear(self.ControlAliases)
