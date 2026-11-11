@@ -59,7 +59,7 @@ JustHub.Themes = {
     Midnight = {["Color Hub 1"] = Color3.fromRGB(0, 0, 20),     ["Color Hub 2"] = Color3.fromRGB(5, 5, 30),     ["Color Stroke"] = Color3.fromRGB(0, 0, 80),     ["Color Theme"] = Color3.fromRGB(50, 50, 255),   ["Color Text"] = Color3.fromRGB(250, 250, 255), ["Color Dark Text"] = Color3.fromRGB(190, 190, 220)}
 }
 
-JustHub.Info = {Version = "3.1.1"}
+JustHub.Info = {Version = "3.1.2"}
 JustHub.Save = {UISize = {620, 440}, TabSize = 135, Theme = "Darker", Transparency = 0.1, Locked = false}
 JustHub.ConfigData = {}
 JustHub.ControlRegistry = {}
@@ -126,24 +126,32 @@ local chromaRenderConn = nil
 local surfaceRegistry = setmetatable({}, {__mode = "k"})
 
 local function refreshTransparencyTokens()
-    local base = math.clamp(tonumber(JustHub.Save.Transparency) or 0.15, 0, 0.85)
+    local base = math.clamp(
+        tonumber(JustHub.Save.Transparency) or 0.03,
+        0,
+        0.85
+    )
+
     local function derive(offset)
         return math.clamp(base + offset, 0, 0.85)
     end
+
     local t = JustHub.DesignTokens.Transparency
-    t.MainWindow = base
-    t.Sidebar = derive(0.035)
-    t.Content = derive(0.055)
-    t.TabActive = derive(0.045)
-    t.TabHover = derive(0.10)
-    t.TabInactive = derive(0.16)
-    t.Section = derive(0.055)
-    t.Control = derive(0.075)
-    t.Input = derive(0.045)
-    t.Popup = derive(0.035)
-    t.Notification = derive(0.035)
-    t.Button = derive(0.055)
+
+    t.MainWindow   = base
+    t.Sidebar      = derive(0.005)
+    t.Content      = derive(0.005)
+    t.TabActive    = derive(0.005)
+    t.TabHover     = derive(0.010)
+    t.TabInactive  = derive(0.020)
+    t.Section      = derive(0.005)
+    t.Control      = derive(0.010)
+    t.Input        = derive(0.005)
+    t.Popup        = base
+    t.Notification = base
+    t.Button       = derive(0.010)
 end
+JustHub.Save.Transparency = 0.03
 refreshTransparencyTokens()
 
 local function surfaceTransparency(kind)
