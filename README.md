@@ -7,7 +7,6 @@
 | Versi | 2.1.0 |
 | Bahasa | Luau (Roblox) |
 | Berkas inti | `JustHub2.lua` (4.861 baris) |
-| Lisensi | Belum ditentukan oleh pemilik repo |
 | Tema bawaan | 17 |
 | Komponen | 12 |
 | Bahasa UI | Indonesia (`id`), Inggris (`en`) |
