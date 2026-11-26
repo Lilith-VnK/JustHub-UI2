@@ -3209,7 +3209,11 @@ windowScope:TrackInstance(screen)
 windowScope:AddCleanup(function() Theme:UnbindTree(screen) end)
 Library.ScreenGui = screen
 Library.ScreenGuis = {screen}
-if options.ToggleKey ~= nil then Library.ToggleKey = options.ToggleKey end
+if options.ToggleKey ~= nil then
+Library.ToggleKey = options.ToggleKey
+elseif Library.ToggleKey == nil then
+Library.ToggleKey = "RightShift"
+end
 local bridge = make("BindableFunction", {Name = "__JustHubCleanup"}, screen)
 bridge.OnInvoke = function()
 Library:Destroy()
@@ -4707,6 +4711,9 @@ if not self:IsAlive() then
 return nil, "JustHub has been destroyed"
 end
 if self.Window and self.ScreenGui and self.ScreenGui.Parent then
+if self.ScreenGui.Enabled == false and type(self.Window.Show) == "function" then
+self.Window:Show()
+end
 return self.Window
 end
 options = type(options) == "table" and options or {}
@@ -4809,15 +4816,14 @@ local finished = false
 local function finish()
 if finished then return end
 finished = true
-if self._activeLoadingScreen == screen then self._activeLoadingScreen = nil end
 if type(callback) == "function" and self:IsAlive() then
-task.defer(function()
-if self:IsAlive() then Util.SafeCall("Loading callback", callback) end
-end)
+Util.SafeCall("Loading callback", callback)
 end
+if self._activeLoadingScreen == screen then self._activeLoadingScreen = nil end
 end
 scope:AddCleanup(finish)
 scope:Delay(duration, function()
+finish()
 scope:Destroy()
 end)
 return true
@@ -4826,7 +4832,13 @@ function JustHub:InitializeUI(options)
 if not self:IsAlive() or self._initializing then
 return false, "Initialization is already running or JustHub is destroyed"
 end
-if self.Window then return true, self.Window end
+if self.Window then
+local existingGui = self.ScreenGui
+if existingGui and existingGui.Parent and existingGui.Enabled == false and type(self.Window.Show) == "function" then
+self.Window:Show()
+end
+return true, self.Window
+end
 self._initializing = true
 local window, err = self:CreateWindow(options)
 self._initializing = false
