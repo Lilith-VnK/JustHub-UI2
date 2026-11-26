@@ -1760,7 +1760,7 @@ end
 end
 end
 local toggleKey = normalizeKeyName(Library.ToggleKey)
-if toggleKey and toggleKey ~= "None" and keyName == toggleKey then
+if toggleKey and toggleKey ~= "None" and keyName == toggleKey and not isCapturingKeybind() then
 Library:ToggleUIVisibility()
 end
 end)
@@ -3190,7 +3190,7 @@ if not parent then
 error("JustHub could not find a valid GUI container", 0)
 end
 for _, child in ipairs(parent:GetChildren()) do
-if child.Name == "JustHub" or child.Name == "JustHubLoadingScreen" or child.Name == "JustHubShowUI" then
+if child.Name == "JustHub" or child.Name == "JustHubShowUI" or (child.Name == "JustHubLoadingScreen" and child ~= Library._activeLoadingScreen) then
 local cleanup = child:FindFirstChild("__JustHubCleanup")
 if cleanup and cleanup:IsA("BindableFunction") then
 pcall(function() cleanup:Invoke() end)
@@ -3834,7 +3834,11 @@ Message = window.Locked and context.Localize("Locked") or context.Localize("Unlo
 Duration = 2,
 })
 end)
-windowScope:Connect(closeButton.Activated, function() Library:Destroy() end)
+windowScope:Connect(closeButton.Activated, function()
+if window.IsMinimized then leaveMinimized() end
+window:Hide()
+savePosition()
+end)
 windowScope:Connect(header.InputBegan, function(input)
 if window.Locked or window.IsMaximized then return end
 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -4750,6 +4754,7 @@ screen.IgnoreGuiInset = true
 screen.DisplayOrder = 1000
 screen.Parent = parent
 scope:TrackInstance(screen)
+self._activeLoadingScreen = screen
 scope:AddCleanup(function() Theme:UnbindTree(screen) end)
 scope:Connect(screen.Destroying, function() scope:Destroy() end)
 local backdrop = Instance.new("Frame")
@@ -4804,6 +4809,7 @@ local finished = false
 local function finish()
 if finished then return end
 finished = true
+if self._activeLoadingScreen == screen then self._activeLoadingScreen = nil end
 if type(callback) == "function" and self:IsAlive() then
 task.defer(function()
 if self:IsAlive() then Util.SafeCall("Loading callback", callback) end
