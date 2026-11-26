@@ -3209,11 +3209,7 @@ windowScope:TrackInstance(screen)
 windowScope:AddCleanup(function() Theme:UnbindTree(screen) end)
 Library.ScreenGui = screen
 Library.ScreenGuis = {screen}
-if options.ToggleKey ~= nil then
-Library.ToggleKey = options.ToggleKey
-elseif Library.ToggleKey == nil then
-Library.ToggleKey = "RightShift"
-end
+if options.ToggleKey ~= nil then Library.ToggleKey = options.ToggleKey end
 local bridge = make("BindableFunction", {Name = "__JustHubCleanup"}, screen)
 bridge.OnInvoke = function()
 Library:Destroy()
@@ -3762,9 +3758,45 @@ window:ApplySearch()
 end)
 local dragInput, dragStart, startPosition
 local resizeInput, resizeStart, resizeSize
+local function popLayout(fromSize, fromPosition, toSize, toPosition)
+	if windowScope:IsAlive() then
+		main.Size = fromSize
+		main.Position = fromPosition or main.Position
+		local played = windowScope:Tween(main, TweenInfo.new(Tokens.Animation.Popup, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = toSize,
+			Position = toPosition or main.Position,
+		})
+		if played then return end
+	end
+	main.Size = toSize
+	main.Position = toPosition or main.Position
+end
+local function animateIntro()
+	if not windowScope:IsAlive() then return end
+	local toSize = main.Size
+	local toPosition = main.Position
+	local fromSize = UDim2.new(0, math.max(120, math.floor(toSize.X.Offset * 0.9)), 0, math.max(80, math.floor(toSize.Y.Offset * 0.9)))
+	main.Size = fromSize
+	local played = windowScope:Tween(main, TweenInfo.new(Tokens.Animation.Popup, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = toSize,
+		Position = toPosition,
+	})
+	if not played then
+		main.Size = toSize
+	end
+end
+window.AnimateIntro = animateIntro
 local function enterMinimized()
 if window.IsMinimized then return end
+if window.IsMaximized then
+window._minimizedFrom = {Size = window._restoreSize or main.Size, Position = window._restorePosition or main.Position}
+window.IsMaximized = false
+window._restoreSize = nil
+window._restorePosition = nil
+else
 window._minimizedFrom = {Size = main.Size, Position = main.Position}
+end
+local fromSize, fromPosition = main.Size, main.Position
 dragInput = nil
 resizeInput = nil
 window.IsMinimized = true
@@ -3773,6 +3805,7 @@ footer.Visible = false
 resizeHandle.Visible = false
 main.Size = UDim2.new(0, math.max(Tokens.Dimensions.MinWidth, currentSize().X), 0, Tokens.Dimensions.Header)
 clampPosition()
+popLayout(fromSize, fromPosition, main.Size, main.Position)
 end
 local function leaveMinimized()
 if not window.IsMinimized then return end
@@ -3782,8 +3815,10 @@ footer.Visible = true
 local from = window._minimizedFrom
 window._minimizedFrom = nil
 if from then
+local fromSize, fromPosition = main.Size, main.Position
 main.Size = from.Size
 main.Position = from.Position
+popLayout(fromSize, fromPosition, main.Size, main.Position)
 end
 applyResponsive()
 resizeHandle.Visible = not window.Locked and not window.IsMaximized
@@ -3798,18 +3833,24 @@ leaveMinimized()
 return
 end
 if window.IsMaximized then
+local fromSize, fromPosition = main.Size, main.Position
 window.IsMaximized = false
 main.Size = window._restoreSize
 main.Position = window._restorePosition
+window._restoreSize = nil
+window._restorePosition = nil
+popLayout(fromSize, fromPosition, main.Size, main.Position)
 else
 window._restoreSize = main.Size
 window._restorePosition = main.Position
 window.IsMaximized = true
 dragInput = nil
 resizeInput = nil
+local fromSize, fromPosition = main.Size, main.Position
 local current = getViewport()
 main.Size = UDim2.fromOffset(math.max(240, current.X - 24), math.max(200, current.Y - 24))
 main.Position = UDim2.fromScale(0.5, 0.5)
+popLayout(fromSize, fromPosition, main.Size, main.Position)
 end
 applyResponsive()
 resizeHandle.Visible = not window.Locked and not window.IsMaximized
@@ -3910,7 +3951,11 @@ dragInput = nil
 resizeInput = nil
 end)
 function window:Show()
-if self.ScreenGui and self.ScreenGui.Parent then self.ScreenGui.Enabled = true return true end
+if self.ScreenGui and self.ScreenGui.Parent then
+self.ScreenGui.Enabled = true
+if windowScope:IsAlive() then animateIntro() end
+return true
+end
 return false
 end
 function window:Hide()
@@ -4711,9 +4756,6 @@ if not self:IsAlive() then
 return nil, "JustHub has been destroyed"
 end
 if self.Window and self.ScreenGui and self.ScreenGui.Parent then
-if self.ScreenGui.Enabled == false and type(self.Window.Show) == "function" then
-self.Window:Show()
-end
 return self.Window
 end
 options = type(options) == "table" and options or {}
@@ -4744,6 +4786,21 @@ return nil, result
 end
 self.Window = result
 self.ScreenGui = result.ScreenGui
+if self._activeLoadingScreen ~= nil then
+result.ScreenGui.Enabled = false
+self._pendingWindowReveal = true
+if type(self._loadingDoneCallbacks) ~= "table" then self._loadingDoneCallbacks = {} end
+table.insert(self._loadingDoneCallbacks, function()
+if self:IsAlive() and self.Window == result then
+result.ScreenGui.Enabled = true
+if type(result.AnimateIntro) == "function" then
+result:AnimateIntro()
+end
+end
+end)
+elseif type(result.AnimateIntro) == "function" then
+result:AnimateIntro()
+end
 return result
 end
 function JustHub:ShowLoadingScreen(duration, callback)
@@ -4816,14 +4873,22 @@ local finished = false
 local function finish()
 if finished then return end
 finished = true
-if type(callback) == "function" and self:IsAlive() then
-Util.SafeCall("Loading callback", callback)
-end
 if self._activeLoadingScreen == screen then self._activeLoadingScreen = nil end
+local pending = self._loadingDoneCallbacks
+if type(pending) == "table" then
+self._loadingDoneCallbacks = nil
+for _, pendingCallback in ipairs(pending) do
+Util.SafeCall("Loading finish callback", pendingCallback)
+end
+end
+if type(callback) == "function" and self:IsAlive() then
+task.defer(function()
+if self:IsAlive() then Util.SafeCall("Loading callback", callback) end
+end)
+end
 end
 scope:AddCleanup(finish)
 scope:Delay(duration, function()
-finish()
 scope:Destroy()
 end)
 return true
@@ -4832,14 +4897,14 @@ function JustHub:InitializeUI(options)
 if not self:IsAlive() or self._initializing then
 return false, "Initialization is already running or JustHub is destroyed"
 end
-if self.Window then
-local existingGui = self.ScreenGui
-if existingGui and existingGui.Parent and existingGui.Enabled == false and type(self.Window.Show) == "function" then
-self.Window:Show()
-end
-return true, self.Window
-end
+if self.Window then return true, self.Window end
+options = type(options) == "table" and options or {}
 self._initializing = true
+if options.ShowLoadingScreen ~= false then
+Util.SafeCall("Auto loading screen", function()
+self:ShowLoadingScreen(options.LoadingDuration or 1.4, options.LoadingCallback)
+end)
+end
 local window, err = self:CreateWindow(options)
 self._initializing = false
 if not window then
@@ -4872,6 +4937,9 @@ table.clear(self.ControlAliases)
 table.clear(self.ScreenGuis)
 self.ScreenGui = nil
 self.Window = nil
+self._loadingDoneCallbacks = nil
+self._pendingWindowReveal = nil
+self._activeLoadingScreen = nil
 self.NotificationContainer = nil
 self._customTheme = nil
 self.ConfigData = {}
